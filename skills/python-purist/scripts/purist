@@ -1,0 +1,291 @@
+#!/usr/bin/env python3
+"""purist — python-purist skill auxiliary CLI.
+
+Usage:
+  purist list [best-practice|case-study|all]
+  purist related <filename.md>
+  purist check <folder>
+  purist checklist
+  purist help
+"""
+
+import os
+import re
+import sys
+from pathlib import Path
+
+SKILL_DIR = Path(__file__).resolve().parent.parent
+BP_DIR = SKILL_DIR / "best-practice"
+CS_DIR = SKILL_DIR / "case-study"
+
+# ── frontmatter parser ─────────────────────────────────────────────────────
+
+def parse_frontmatter(filepath: Path) -> dict:
+    """Extract YAML frontmatter as a dict. Handles scalar and list values."""
+    with open(filepath) as f:
+        content = f.read()
+
+    m = re.match(r'^---\s*\n(.*?)\n---', content, re.DOTALL)
+    if not m:
+        return {}
+
+    fm_text = m.group(1)
+    result: dict[str, str | list[str]] = {}
+    current_key = None
+    current_list: list[str] = []
+
+    for line in fm_text.split('\n'):
+        # Top-level key: value or key:
+        m = re.match(r'^(\w[\w-]*):\s*(.*)', line)
+        if m:
+            # Flush previous list
+            if current_key is not None and current_list:
+                result[current_key] = current_list
+                current_list = []
+                current_key = None
+
+            key = m.group(1)
+            val = m.group(2).strip()
+
+            if val == '':
+                # List follows
+                current_key = key
+                current_list = []
+            elif val.startswith('"') and val.endswith('"'):
+                result[key] = val[1:-1]
+            elif val.startswith('[') and val.endswith(']'):
+                # Inline list: [a, b, c]
+                items = val[1:-1].split(',')
+                result[key] = [i.strip().strip('"\'') for i in items if i.strip()]
+            else:
+                result[key] = val
+            continue
+
+        # List item
+        m = re.match(r'^\s+-\s+(.*)', line)
+        if m and current_key is not None:
+            item = m.group(1).strip().strip('"\'')
+            current_list.append(item)
+
+    # Flush final list
+    if current_key is not None and current_list:
+        result[current_key] = current_list
+
+    return result
+
+
+# ── commands ────────────────────────────────────────────────────────────────
+
+def cmd_list(category: str = "all") -> None:
+    dirs: list[tuple[str, Path]] = []
+    if category in ("best-practice", "all"):
+        dirs.append(("best-practice", BP_DIR))
+    if category in ("case-study", "all"):
+        dirs.append(("case-study", CS_DIR))
+
+    for cat_name, dir_path in dirs:
+        print(f"\n━━━ {cat_name} ━━━\n")
+        for fpath in sorted(dir_path.glob("*.md")):
+            fm = parse_frontmatter(fpath)
+            title = fm.get("title", "")
+            summary = fm.get("summary", "")
+            tags = fm.get("tags", [])
+
+            print(f"  \033[1m{fpath.name}\033[0m")
+            if title:
+                print(f"    title:   {title}")
+            if summary:
+                print(f"    summary: {summary}")
+            if tags:
+                if isinstance(tags, list):
+                    print(f"    tags:    [{', '.join(tags)}]")
+                else:
+                    print(f"    tags:    [{tags}]")
+            print()
+
+
+def cmd_related(target: str) -> None:
+    fullpath = None
+    for d in (BP_DIR, CS_DIR):
+        cand = d / target
+        if cand.exists():
+            fullpath = cand
+            break
+
+    if fullpath is None:
+        print(f"Error: '{target}' not found in best-practice/ or case-study/", file=sys.stderr)
+        sys.exit(1)
+
+    fm = parse_frontmatter(fullpath)
+    title = fm.get("title", "")
+    related = fm.get("related", [])
+
+    print(f"\nRelated to: {fullpath.name} — {title}\n")
+
+    if not related:
+        print("  (no related docs listed)")
+        return
+
+    for rel in related:
+        rel = str(rel)
+        if rel.startswith("../"):
+            rel_path = SKILL_DIR / rel[3:]
+        else:
+            rel_path = fullpath.parent / rel
+
+        if rel_path.exists():
+            rel_fm = parse_frontmatter(rel_path)
+            rel_title = rel_fm.get("title", "")
+            print(f"  → {rel:<40s}  {rel_title}")
+        else:
+            print(f"  → {rel:<40s}  [missing]")
+    print()
+
+
+def cmd_check(target: str) -> None:
+    target_path = Path(target).resolve()
+    if not target_path.is_dir():
+        print(f"Error: '{target}' is not a directory", file=sys.stderr)
+        sys.exit(1)
+
+    patterns = [
+        # (severity, label, regex)
+        ("ERROR",   "bare-except",           r"except\s*:\s*$"),
+        ("ERROR",   "type-ignore",           r"#\s*type:\s*ignore"),
+        ("ERROR",   "print-as-log",          r"^\s*print\("),
+        ("ERROR",   "loguru-import",         r"from loguru import|import loguru"),
+        ("WARNING", "dict-str-any",          r"dict\[str,\s*Any\]"),
+        ("WARNING", "noqa",                  r"#\s*noqa"),
+        ("WARNING", "bare-object-annotation", r":[^=]*\bobject\b"),
+        ("WARNING", "kwargs-passthrough",    r"\*\*kwargs"),
+        ("WARNING", "data-passthrough",      r"\*\*data"),
+        ("WARNING", "deep-inheritance",      r"class\s+\w+\([^)]*,[^)]*,[^)]*\)"),
+        ("WARNING", "logging-file-handler",  r"FileHandler|TimedRotatingFileHandler|RotatingFileHandler|logger\.add\(.*\.log"),
+        ("REVIEW",  "magic-getattr",         r"__getattr__"),
+        ("REVIEW",  "magic-setattr",         r"__setattr__"),
+        ("REVIEW",  "magic-delattr",         r"__delattr__"),
+        ("REVIEW",  "hasattr-abuse",         r"hasattr\s*\("),
+        ("REVIEW",  "bare-any-annotation",   r":[^=]*\bAny\b"),
+        ("REVIEW",  "bare-exception-catch",  r"except\s+Exception"),
+        ("REVIEW",  "abc-inheritance",       r"class\s+\w+\([^)]*ABC[^)]*\)"),
+        ("REVIEW",  "two-phase-init",        r"def\s+(setup|init|connect|initialize)\s*\(self"),
+    ]
+
+    colors = {
+        "ERROR":   "\033[1;31m",   # bold red
+        "WARNING": "\033[1;33m",   # bold yellow
+        "REVIEW":  "\033[1;36m",   # bold cyan
+    }
+    RESET = "\033[0m"
+
+    print(f"\nPurist Check: {target_path}")
+    print("=" * (14 + len(str(target_path))) + "\n")
+
+    found_any = False
+
+    for severity, label, pattern in patterns:
+        matches = []
+        for pyfile in target_path.rglob("*.py"):
+            try:
+                with open(pyfile) as f:
+                    for lineno, line in enumerate(f, 1):
+                        if re.search(pattern, line):
+                            matches.append(f"         {pyfile}:{lineno}: {line.rstrip()}")
+            except (OSError, UnicodeDecodeError):
+                continue
+
+        if matches:
+            found_any = True
+            color = colors.get(severity, "")
+            plural = "es" if len(matches) > 1 else ""
+            print(f"  {color}[{severity}]{RESET} {label} ({len(matches)} match{plural})")
+
+            for m in matches[:10]:
+                print(m)
+            if len(matches) > 10:
+                print(f"         ... and {len(matches) - 10} more")
+            print()
+
+    if not found_any:
+        print("  ✓ No purist violations detected.\n")
+
+
+def cmd_checklist() -> None:
+    print("""
+Quality Checklist
+=================
+
+  The Five Facets — verify separation before reviewing logic:
+  - [ ] Configuration: can I swap the config source without touching core logic?
+  - [ ] Runtime Resources: is there a single owner of the acquire/pool/recycle/release lifecycle?
+  - [ ] Persistence: can I swap the storage backend without touching business logic?
+  - [ ] Observability: are metrics, traces, alerts routed through a dedicated channel with fault isolation?
+
+  Type safety:
+  - [ ] Are all function params and return values fully type-annotated?
+  - [ ] Is there zero usage of Any, type: ignore, # noqa?
+  - [ ] Do serialization/deserialization boundaries have explicit schemas (no bare dict)?
+  - [ ] Are immutable objects used as dict keys — hash contract never violated?
+
+  Architecture:
+  - [ ] Are the three inheritance types kept separate?
+        • Type 1 (code sharing) → composition + DI
+        • Type 2 (interface) → Protocol (preferred) or pure-abstract ABC
+        • Type 3 (specialization) → LSP-compliant, ≤2 levels deep
+  - [ ] Is the Template Method pattern replaced with decorator/wrapper?
+  - [ ] Does every public function have at least one test?
+  - [ ] Is there zero except: pass or silent exception swallowing?
+  - [ ] Are untrusted inputs validated immediately at system boundaries (fail fast)?
+  - [ ] Are external resources (subprocess, DB, files) managed by a single owner with explicit lifecycle?
+
+  Observability:
+  - [ ] Are all log events structured (dict-based, not string interpolation)?
+  - [ ] Is there zero usage of print() for logging, loguru, or bare stdlib logging?
+  - [ ] Does log output go to stderr only — application never opens log files?
+  - [ ] Does every log event carry context (request_id, user_id) via automatic propagation?
+  - [ ] Are metrics, traces, alerts separated from the logging pipeline — structlog for logs, event bus for telemetry?
+  - [ ] Do telemetry subscribers have independent fault isolation — a crashed subscriber never breaks the app?
+""")
+
+
+def cmd_help() -> None:
+    print("""Usage: purist {list|related|check|checklist} [args...]
+
+Commands:
+  list [best-practice|case-study|all]  List docs with title, tags, summary
+  related <filename.md>               Show related docs from frontmatter
+  check <folder>                      Scan Python code for anti-patterns
+  checklist                           Print the quality checklist
+""")
+
+
+# ── main ────────────────────────────────────────────────────────────────────
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        cmd_help()
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+    args = sys.argv[2:]
+
+    commands = {
+        "list":      lambda: cmd_list(args[0] if args else "all"),
+        "related":   lambda: cmd_related(args[0] if args else ""),
+        "check":     lambda: cmd_check(args[0] if args else "."),
+        "checklist": cmd_checklist,
+        "help":      cmd_help,
+        "--help":    cmd_help,
+        "-h":        cmd_help,
+    }
+
+    if cmd in commands:
+        commands[cmd]()
+    else:
+        print(f"Unknown command: {cmd}", file=sys.stderr)
+        cmd_help()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

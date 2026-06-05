@@ -1,0 +1,18 @@
+{
+  "name": "opendawn",
+  "private": true,
+  "description": "Agent skills ecosystem — platform-independent skills for AI coding agents",
+  "license": "MIT",
+  "author": "Tomorrowdawn",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Tomorrowdawn/opendawn"
+  },
+  "scripts": {
+    "build": "pnpm -r build",
+    "check": "pnpm -r check"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}
