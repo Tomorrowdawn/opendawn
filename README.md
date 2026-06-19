@@ -7,13 +7,19 @@ Agent skills and custom agents for AI coding tools — OpenCode, Claude Code, an
 Install into your current project (default):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh | bash
+bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh)
 ```
 
 Install globally (`~/.config/opencode`, `~/.claude`):
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh | bash -s -- -g
+bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh) -g
+```
+
+Non-interactive (overwrite all without asking):
+
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh) -y
 ```
 
 Or clone manually:
@@ -21,8 +27,9 @@ Or clone manually:
 ```bash
 git clone https://github.com/Tomorrowdawn/opendawn.git
 cd your-project
-bash ../opendawn/scripts/install.sh      # local
+bash ../opendawn/scripts/install.sh      # local, interactive
 bash ../opendawn/scripts/install.sh -g   # global
+bash ../opendawn/scripts/install.sh -y   # non-interactive
 ```
 
 `npx skills` CLI users:
@@ -39,8 +46,14 @@ OpenCode primary and subagent definitions.
 
 | Agent | Role |
 |-------|------|
-| `YuuDev` | Phase 1 — requirement exploration, design consensus, encoding instruction authoring |
-| `YuuCoder` | Phase 2 — reads encoding instructions, implements in worktree, commits, self-reviews |
+| `YuuDev` | Phase 1 — requirement exploration, design consensus, coding instruction authoring |
+| `YuuCoder` | Phase 2 — reads coding instructions, implements in worktree, commits, self-reviews |
+
+### Custom Commands (`.opencode/commands/`)
+
+| Command | Description |
+|---------|-------------|
+| `/yuucode` | Skip design, delegate directly to YuuCoder for implementation |
 
 ### Skills (`skills/`)
 
@@ -49,7 +62,6 @@ Platform-independent agent skills.
 | Skill | Description |
 |-------|-------------|
 | `python-purist` | Opinionated Python coding standards — type safety, composition over inheritance, coroutines over threads |
-| `reviewer-loop` | Quality gate — review completed work against goals, approve or trigger rework |
 
 ## Development
 
@@ -64,11 +76,12 @@ pnpm check          # TypeScript type checking
 opendawn/
 ├── skills/                        # Platform-independent agent skills
 │   ├── python-purist/SKILL.md
-│   └── reviewer-loop/SKILL.md
 ├── .opencode/
-│   └── agents/                    # OpenCode agent definitions
-│       ├── yuudev.md
-│       └── yuucoder.md
+│   ├── agents/                    # OpenCode agent definitions
+│   │   ├── yuudev.md
+│   │   └── yuucoder.md
+│   └── commands/                  # Custom slash commands
+│       └── yuucode.md
 ├── scripts/
 │   └── install.sh                 # One-liner install script
 ├── external-wiki/                 # Reference docs for OpenCode plugin system

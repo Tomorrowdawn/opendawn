@@ -2,43 +2,45 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────
-# opendawn install — one-liner compatible
+# opendawn install — interactive, deep-merge
 #
-#   curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh | bash
+#   bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh)
+#   bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh) -g
 #
-# Default: installs skills + agents into the current project (./.agents, ./.claude, ./.opencode).
-# With -g:  installs globally (~/.config/opencode, ~/.claude).
-# Idempotent — safe to run multiple times.
+#   curl pipe + interactive = use bash <(...) so stdin stays on tty.
 # ──────────────────────────────────────────────
 
 usage() {
-    echo "Usage: install.sh [-g]"
+    echo "Usage: install.sh [-g] [-y]"
     echo "  (no flag)  Install into current directory (local project)"
     echo "  -g         Install globally (~/.config/opencode, ~/.claude)"
+    echo "  -y         Non-interactive: overwrite all conflicts without asking"
     exit 1
 }
 
 GLOBAL=false
-while getopts "gh" opt; do
+YES=false
+while getopts "ghy" opt; do
     case "$opt" in
         g) GLOBAL=true ;;
+        y) YES=true ;;
         h) usage ;;
         *) usage ;;
     esac
 done
 
-# ── determine source (where skills/agents live) ──
-INSTALL_DIR="${OPENDOWN_INSTALL_DIR:-$HOME/.local/share/opendawn}"
+# ── determine source ──────────────────────────────────
+REPO_CACHE="${OPENDOWN_REPO_CACHE:-$HOME/.cache/opendawn}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo "")"
 if [ -n "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR/../skills" ]; then
     REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
     echo "==> Using existing clone at $REPO_ROOT"
 else
-    REPO_ROOT="$INSTALL_DIR"
+    REPO_ROOT="$REPO_CACHE"
     if [ ! -d "$REPO_ROOT" ]; then
-        echo "==> Cloning opendawn to $REPO_ROOT…"
-        git clone https://github.com/Tomorrowdawn/opendawn.git "$REPO_ROOT"
+        echo "==> Fetching opendawn to $REPO_ROOT…"
+        git clone --depth 1 https://github.com/Tomorrowdawn/opendawn.git "$REPO_ROOT"
     else
         echo "==> Updating $REPO_ROOT…"
         git -C "$REPO_ROOT" pull --ff-only 2>/dev/null || true
@@ -46,84 +48,171 @@ else
 fi
 
 SKILLS_SRC="$REPO_ROOT/skills"
-AGENTS_SRC="$REPO_ROOT/.opencode/agents"
+OPENDOWN_SRC="$REPO_ROOT/.opencode"
 
-# ── determine targets ──────────────────────────
+# ── determine targets ────────────────────────────────
 if $GLOBAL; then
     echo "==> Installing globally…"
     SKILL_TARGETS=(
         "$HOME/.config/opencode/skills"
         "$HOME/.claude/skills"
     )
-    AGENT_TARGETS=(
-        "$HOME/.config/opencode/agents"
-    )
+    OPENDOWN_TARGET="$HOME/.config/opencode"
 else
     echo "==> Installing to current project ($PWD)…"
     SKILL_TARGETS=(
         "$PWD/.agents/skills"
         "$PWD/.claude/skills"
     )
-    AGENT_TARGETS=(
-        "$PWD/.opencode/agents"
-    )
+    OPENDOWN_TARGET="$PWD/.opencode"
 fi
 
-# ── helpers ────────────────────────────────────
-symlink_dir() {
-    local src="$1" dest_root="$2" name="$3"
-    mkdir -p "$dest_root"
-    local dest="$dest_root/$name"
+# ── conflict state ───────────────────────────────────
+CONFLICT_MODE=""  # "" = ask, "overwrite" = overwrite-all, "skip" = skip-all
+STATS_NEW=0
+STATS_UPDATED=0
+STATS_SKIPPED=0
 
-    if [ -L "$dest" ]; then
-        local current; current="$(readlink "$dest")"
-        [ "$current" = "$src" ] && return 0
-        rm -f "$dest"
-    elif [ -d "$dest" ]; then
-        rm -rf "$dest"
+# ── interactive merge helpers ────────────────────────
+prompt_conflict() {
+    local src="$1" dest="$2" rel="$3"
+
+    echo ""
+    echo "  ▸ $rel already exists."
+
+    if $YES; then
+        cp "$src" "$dest"
+        ((STATS_UPDATED++))
+        echo "    overwritten (-y)"
+        return
     fi
 
-    ln -sfn "$src" "$dest"
-    echo "  $name → $dest"
+    # read from tty explicitly — stdin may be a pipe from curl|bash
+    local choice
+    while true; do
+        read -r -p "    [o]verwrite  [s]kip  O[verwrite all]  S[kip all]  [d]iff  " choice < /dev/tty
+        case "$choice" in
+            o)
+                cp "$src" "$dest"
+                ((STATS_UPDATED++))
+                echo "    overwritten"
+                return
+                ;;
+            s)
+                ((STATS_SKIPPED++))
+                echo "    skipped"
+                return
+                ;;
+            O)
+                CONFLICT_MODE="overwrite"
+                cp "$src" "$dest"
+                ((STATS_UPDATED++))
+                echo "    overwritten (all)"
+                return
+                ;;
+            S)
+                CONFLICT_MODE="skip"
+                ((STATS_SKIPPED++))
+                echo "    skipped (all)"
+                return
+                ;;
+            d)
+                diff -u "$dest" "$src" 2>/dev/null || true
+                ;;
+            *)
+                echo "    [o/s/O/S/d]"
+                ;;
+        esac
+    done
 }
 
-symlink_file() {
-    local src="$1" dest_root="$2" name="$3"
-    mkdir -p "$dest_root"
-    local dest="$dest_root/$name"
+merge_file() {
+    local src="$1" dest="$2" rel="$3"
 
-    # Skip if src and dest are the same file (e.g. agents already in .opencode/agents/)
-    [ "$(realpath "$src")" = "$(realpath "$dest" 2>/dev/null || echo "")" ] 2>/dev/null && return 0
-
-    if [ -L "$dest" ]; then
-        local current; current="$(readlink "$dest")"
-        [ "$current" = "$src" ] && return 0
-        rm -f "$dest"
+    if [ ! -e "$dest" ]; then
+        mkdir -p "$(dirname "$dest")"
+        cp "$src" "$dest"
+        ((STATS_NEW++))
+        echo "  + $rel"
+        return
     fi
 
-    ln -sf "$src" "$dest"
-    echo "  $name → $dest"
+    # Same inode → skip
+    if [ "$(stat -c '%i' "$src" 2>/dev/null)" = "$(stat -c '%i' "$dest" 2>/dev/null)" ] 2>/dev/null; then
+        return
+    fi
+
+    # Identical content → skip silently
+    if cmp -s "$src" "$dest" 2>/dev/null; then
+        return
+    fi
+
+    case "$CONFLICT_MODE" in
+        overwrite)
+            cp "$src" "$dest"
+            ((STATS_UPDATED++))
+            echo "  ~ $rel (overwritten)"
+            ;;
+        skip)
+            ((STATS_SKIPPED++))
+            echo "  - $rel (skipped)"
+            ;;
+        *)
+            prompt_conflict "$src" "$dest" "$rel"
+            ;;
+    esac
 }
 
-# ── install ────────────────────────────────────
+merge_tree() {
+    local src_dir="$1" dest_dir="$2" prefix="$3"
+
+    # Skip if src and dest are the same directory (local self-install)
+    if [ "$(realpath "$src_dir" 2>/dev/null)" = "$(realpath "$dest_dir" 2>/dev/null)" ] 2>/dev/null; then
+        return
+    fi
+
+    local item
+    while IFS= read -r -d '' item; do
+        local rel="${item#$src_dir/}"
+        local dest="$dest_dir/$rel"
+        [ -n "$prefix" ] && rel="$prefix/$rel"
+
+        if [ -d "$item" ]; then
+            mkdir -p "$dest"
+        else
+            merge_file "$item" "$dest" "$rel"
+        fi
+    done < <(find "$src_dir" -mindepth 1 -print0 | sort -z)
+}
+
+# ── install skills ───────────────────────────────────
+echo ""
+echo "── Skills ──"
 for skill_dir in "$SKILLS_SRC"/*/; do
     skill_name="$(basename "$skill_dir")"
     [ "$skill_name" = "*" ] && continue
     for target in "${SKILL_TARGETS[@]}"; do
-        symlink_dir "$skill_dir" "$target" "$skill_name"
+        merge_tree "$skill_dir" "$target/$skill_name" "skills/$skill_name"
     done
 done
 
-for agent_file in "$AGENTS_SRC"/*.md; do
-    agent_name="$(basename "$agent_file" .md)"
-    [ "$agent_name" = "*" ] && continue
-    for target in "${AGENT_TARGETS[@]}"; do
-        symlink_file "$agent_file" "$target" "$agent_name.md"
-    done
+# ── install .opencode/ subdirs ───────────────────────
+echo ""
+echo "── OpenCode config (.opencode/) ──"
+for subdir in agents commands; do
+    src="$OPENDOWN_SRC/$subdir"
+    [ -d "$src" ] || continue
+    merge_tree "$src" "$OPENDOWN_TARGET/$subdir" "$subdir"
 done
 
+# ── summary ──────────────────────────────────────────
 echo ""
-echo "Done. Skills and agents installed."
-echo ""
-echo "  npx skills CLI users, also run:"
-echo "    npx skills add $REPO_ROOT"
+echo "──────────────────────────────────────────"
+echo "Done."
+echo "  + $STATS_NEW new files"
+echo "  ~ $STATS_UPDATED updated"
+echo "  - $STATS_SKIPPED skipped"
+echo "──────────────────────────────────────────"
+if [ "$STATS_SKIPPED" -gt 0 ]; then
+    echo "Re-run with -y to overwrite all skipped files."
+fi
