@@ -2,3 +2,8 @@ node_modules/
 .tmp/
 bun.lock
 pnpm-lock.yaml
+
+# install artifacts (symlinks)
+.agents/
+.claude/
+.opencode/skills/
