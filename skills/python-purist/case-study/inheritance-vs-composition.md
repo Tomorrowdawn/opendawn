@@ -68,18 +68,18 @@ data = fetcher.fetch("https://api.example.com/data")
 ## 好代码：LEGO 式组合 + 依赖注入
 
 ```python
-from dataclasses import dataclass
+from attrs import define
 from typing import Protocol
 
 class Fetcher(Protocol):
     def fetch(self, url: str) -> str: ...
 
-@dataclass
+@define
 class HttpFetcher:
     def fetch(self, url: str) -> str:
         ...  # 实际 HTTP 请求
 
-@dataclass
+@define
 class LoggingFetcher:
     inner: Fetcher
 
@@ -87,7 +87,7 @@ class LoggingFetcher:
         print(f"[LOG] fetching {url}")
         return self.inner.fetch(url)
 
-@dataclass
+@define
 class RetryFetcher:
     inner: Fetcher
     max_retries: int = 3
@@ -100,7 +100,7 @@ class RetryFetcher:
                 if i == self.max_retries - 1:
                     raise
 
-@dataclass
+@define
 class CachingFetcher:
     inner: Fetcher
     _cache: dict[str, str] = field(default_factory=dict)

@@ -7,6 +7,7 @@ tags:
   - abstraction
   - boundary
   - api-design
+  - design-pattern
 related:
   - ../best-practice/composition-over-inheritance.md
 summary: "Clean subsystem entry point that hides internal complexity without leaking implementation details — a disciplined architectural boundary."
@@ -114,43 +115,41 @@ import hmac
 import json
 import logging
 from asyncio import sleep
-from dataclasses import dataclass
+from attrs import define, field
 from time import time
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class ChargeRequest:
     amount: int
     currency: str
     description: str
 
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class ChargeResult:
     charge_id: str
     status: str
     amount: int
 
 
+@define
 class PaymentFacade:
     """统一外观——封装签名、加密、重试、解密、验证，对外只暴露业务接口。"""
+    api_key: str
+    app_secret: bytes
+    master_key: bytes
+    base_url: str = "https://pay.example.com"
+    max_retries: int = 3
+    _client: PaymentClient = field(init=False)
+    _crypto: CryptoEngine = field(init=False)
 
-    def __init__(
-        self,
-        *,
-        api_key: str,
-        app_secret: bytes,
-        master_key: bytes,
-        base_url: str = "https://pay.example.com",
-        max_retries: int = 3,
-    ) -> None:
-        self._client = PaymentClient(api_key=api_key, base_url=base_url)
-        self._crypto = CryptoEngine(master_key=master_key)
-        self._app_secret = app_secret
-        self._max_retries = max_retries
+    def __attrs_post_init__(self):
+        self._client = PaymentClient(api_key=self.api_key, base_url=self.base_url)
+        self._crypto = CryptoEngine(master_key=self.master_key)
 
     async def charge(self, request: ChargeRequest) -> ChargeResult:
         data = await self._send("/v1/charges", {
@@ -171,10 +170,10 @@ class PaymentFacade:
     # --- 内部：一次性实现 6 步底层操作 ---
 
     def _sign(self, payload: str) -> str:
-        return hmac.new(self._app_secret, payload.encode(), hashlib.sha256).hexdigest()
+        return hmac.new(self.app_secret, payload.encode(), hashlib.sha256).hexdigest()
 
     def _verify_signature(self, payload: bytes, signature: str) -> None:
-        expected = hmac.new(self._app_secret, payload, hashlib.sha256).hexdigest()
+        expected = hmac.new(self.app_secret, payload, hashlib.sha256).hexdigest()
         if signature != expected:
             raise ValueError("Response signature mismatch")
 
@@ -185,12 +184,12 @@ class PaymentFacade:
         signature = self._sign(payload_str)
         encrypted = self._crypto.encrypt(payload_str.encode())
 
-        for attempt in range(self._max_retries):
+        for attempt in range(self.max_retries):
             try:
                 resp = await self._client.post(path, body=encrypted, signature=signature)
                 break
             except Exception:
-                if attempt == self._max_retries - 1:
+                if attempt == self.max_retries - 1:
                     raise
                 await sleep(2.0 ** attempt)
 

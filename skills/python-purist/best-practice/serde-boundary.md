@@ -4,6 +4,7 @@ category: best-practice
 tags:
   - serialization
   - deserialization
+  - serde
   - schema
   - msgspec
   - pydantic
@@ -70,6 +71,28 @@ def load_config(path: str) -> AppConfig:
 # ❌ 不要把 dict 作为参数传来传去
 def setup_app(config: dict) -> App: ...  # 谁知道 config 里有什么？
 ```
+
+## 禁止的反模式：递归类型别名 + TypeGuard
+
+当你遇到 untyped dict（JSON、YAML、API 响应等），**唯一正确的答案永远是：写一个 schema，然后反序列化。** 永远不要写以下代码：
+
+```python
+# ❌ 禁止——递归类型别名 + TypeGuard + 恒等转换 = 类型cosplay
+type JsonValue = str | int | float | bool | None | list[JsonValue] | dict[str, JsonValue]
+
+def is_json_value(value: object) -> TypeGuard[JsonValue]:  # 假装验证
+    ...
+
+def _resource_value_from_json(value: JsonValue) -> ResourceValue:
+    return value  # 恒等函数，欺骗类型检查器
+```
+
+这类代码的三个问题：
+1. **递归 `isinstance` 遍历在运行时无效**——它只是检查类型标签，不做转换、不做缺失字段检测、不做类型强制
+2. **恒等转换函数 (`return value`) 是类型欺骗**——它对类型检查器说谎，run time 零保护
+3. **浪费了 schema 库的验证能力**——`msgspec.convert(data, type=MySchema)` 一行代码完成递归验证 + 类型转换 + 缺失字段检测 + 多余字段拒绝
+
+**正确做法永远是**：定义 `msgspec.Struct` schema → 一次 `msgspec.convert()` → 全链路强类型对象。
 
 ## 总结
 

@@ -7,6 +7,7 @@ tags:
   - callback
   - decoupling
   - pub-sub
+  - design-pattern
 related:
   - ../best-practice/composition-over-inheritance.md
   - event-bus-observability.md
@@ -76,10 +77,12 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
+from attrs import define, field
+
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class ResourceEvent:
     action: str  # "created" | "updated" | "deleted"
     resource_id: str
@@ -93,11 +96,13 @@ class ResourceListener(Protocol):
     async def on_resource_changed(self, event: ResourceEvent) -> None: ...
 
 
+@define
 class EventEmitter:
     """轻量级事件发射器——管理订阅者注册和事件分发。"""
+    _listeners: list[ResourceListener] = field(init=False)
 
-    def __init__(self) -> None:
-        self._listeners: list[ResourceListener] = []
+    def __attrs_post_init__(self) -> None:
+        self._listeners = []
 
     def subscribe(self, listener: ResourceListener) -> None:
         self._listeners.append(listener)
@@ -141,14 +146,14 @@ emitter.subscribe(MetricsCollector())
 emitter.subscribe(AuditLogger())
 
 
+@define
 class ResourceService:
-    def __init__(self, emitter: EventEmitter, repository: ResourceRepository) -> None:
-        self._emitter = emitter
-        self._repository = repository
+    emitter: EventEmitter
+    repository: ResourceRepository
 
     async def create_resource(self, data: dict[str, Any]) -> str:
-        resource_id = await self._repository.insert(data)
-        await self._emitter.emit(ResourceEvent(
+        resource_id = await self.repository.insert(data)
+        await self.emitter.emit(ResourceEvent(
             action="created", resource_id=resource_id,
             resource_type=data["type"], payload=data,
         ))

@@ -33,14 +33,14 @@ summary: "Validate at system boundaries, crash immediately on bad data. Never le
 3. **反序列化** —— JSON/配置/API 响应解析后立即验证
 
 ```python
-from dataclasses import dataclass
+from attrs import define
 
-@dataclass
+@define
 class User:
     name: str
     age: int
 
-    def __post_init__(self) -> None:
+    def __attrs_post_init__(self) -> None:
         # 边界验证：构造完成即刻检查
         assert isinstance(self.name, str), "name must be str"
         assert len(self.name) > 0, "name must not be empty"

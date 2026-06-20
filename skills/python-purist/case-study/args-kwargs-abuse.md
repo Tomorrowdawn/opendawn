@@ -7,6 +7,7 @@ tags:
   - function-signature
   - type-safety
   - readability
+  - anti-pattern
 related:
   - ../best-practice/explicit-over-implicit.md
   - ../best-practice/type-safety.md
@@ -69,9 +70,9 @@ send_message(
 ## 好代码
 
 ```python
-from dataclasses import dataclass, field
+from attrs import define, field
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class MessageConfig:
     channel: str = "default"
     content: str = ""

@@ -7,6 +7,7 @@ tags:
   - pytest
   - red-green
   - test-first
+  - refactoring
 summary: "Simon Willison's agentic TDD pattern adapted to Python. Write test → watch it FAIL → write minimal code → watch it PASS → refactor. Never skip the red step."
 ---
 # Red-Green-Refactor TDD
@@ -66,3 +67,7 @@ $ pytest test_calculator.py -k test_add
 > **"写测试 → 确认失败 → 实现 → 确认通过 → 重构"** 这十二个字是对 coding agent 最有效的约束。每个优秀的模型都能理解 "red/green TDD" 这个缩写所代表的完整流程。
 
 这不仅是写代码的技巧，更是工程纪律。它强制你在写实现之前先定义"什么是正确的"，从而杜绝模糊需求和过度实现。
+
+## 第五步：自证回归测试有效
+
+TDD 流程写完测试后，回归测试必须自证有效。详见 [`verify-regression-tests.md`](verify-regression-tests.md)：在关键路径故意改错一行，测试必须挂。不挂则测试无效，重写。

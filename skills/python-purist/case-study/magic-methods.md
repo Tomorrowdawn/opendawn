@@ -7,6 +7,7 @@ tags:
   - setattr
   - implicit
   - debugging
+  - anti-pattern
 related:
   - ../best-practice/explicit-over-implicit.md
 summary: "__getattr__/__setattr__ hiding DB queries, network calls, or state mutations behind innocent attribute access — code becomes unpredictable."
@@ -72,13 +73,13 @@ def skip_context_manager(func):
 ## 好代码
 
 ```python
-from dataclasses import dataclass, field
+from attrs import define, field
 import logging
 from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-@dataclass
+@define
 class UserSettings:
     _raw: dict[str, str] = field(default_factory=dict)
 

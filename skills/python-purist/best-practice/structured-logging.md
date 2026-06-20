@@ -8,6 +8,7 @@ tags:
   - observability
   - errors
   - stderr
+  - context
 related:
   - ../case-study/structlog-pattern.md
   - ../case-study/loguru-antipattern.md

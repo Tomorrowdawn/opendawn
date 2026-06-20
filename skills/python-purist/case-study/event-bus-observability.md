@@ -9,6 +9,7 @@ tags:
   - alerting
   - telemetry
   - decoupling
+  - design-pattern
 related:
   - ../best-practice/structured-logging.md
   - ../best-practice/explicit-over-implicit.md
@@ -93,14 +94,14 @@ from __future__ import annotations
 import asyncio
 import structlog
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from attrs import define, field
 from typing import Any, Protocol
 
 logger = structlog.get_logger(__name__)
 
 # ── Domain Event (immutable, typed) ──────────────────────────────────────
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class PaymentCompleted:
     """A domain event — not a log entry, not a metric. Pure data."""
     order_id: str
@@ -122,7 +123,7 @@ class TelemetrySubscriber(Protocol):
 
 # ── Event Bus ────────────────────────────────────────────────────────────
 
-@dataclass
+@define
 class TelemetryEventBus:
     """A lightweight async event bus dedicated to observability.
 
@@ -177,11 +178,11 @@ class TelemetryEventBus:
 
 # ── Subscriber Implementations ────────────────────────────────────────────
 
+@define
 class PrometheusMetricsSubscriber:
     """Exports domain events as Prometheus counters and histograms."""
 
-    def __init__(self) -> None:
-        self._counter: Any = None  # prometheus_client.Counter — initialized in setup
+    _counter: Any = field(init=False, default=None)  # prometheus_client.Counter — initialized in setup
 
     async def on_event(self, event: object) -> None:
         if isinstance(event, PaymentCompleted):
@@ -191,6 +192,7 @@ class PrometheusMetricsSubscriber:
             ).inc()
 
 
+@define
 class OpenTelemetryTracingSubscriber:
     """Records domain events as OpenTelemetry span events."""
 
@@ -210,26 +212,26 @@ class OpenTelemetryTracingSubscriber:
             )
 
 
+@define
 class SlackAlertSubscriber:
     """Sends Slack alerts for high-value events. Configurable threshold."""
 
-    def __init__(self, threshold_cents: int, webhook_url: str) -> None:
-        self._threshold = threshold_cents
-        self._webhook = webhook_url
+    threshold_cents: int
+    webhook_url: str
 
     async def on_event(self, event: object) -> None:
-        if isinstance(event, PaymentCompleted) and event.amount >= self._threshold:
-            await _post_slack(self._webhook, f"Large payment: {event.order_id} ${event.amount}")
+        if isinstance(event, PaymentCompleted) and event.amount >= self.threshold_cents:
+            await _post_slack(self.webhook_url, f"Large payment: {event.order_id} ${event.amount}")
 
 
+@define
 class AuditLogSubscriber:
     """Writes structured audit events — environment-aware (dev → no-op)."""
 
-    def __init__(self, *, enabled: bool = True) -> None:
-        self._enabled = enabled
+    enabled: bool = True
 
     async def on_event(self, event: object) -> None:
-        if not self._enabled:
+        if not self.enabled:
             return
         logger.info(
             "audit_event",

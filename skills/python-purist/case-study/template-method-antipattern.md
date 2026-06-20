@@ -7,6 +7,7 @@ tags:
   - inheritance
   - anti-pattern
   - decorator
+  - design-pattern
 related:
   - ../best-practice/composition-over-inheritance.md
 summary: "Base class defines the algorithm skeleton, subclass fills in the blanks — replaces with decorator wrapping for testability, clarity, and loose coupling."
@@ -75,6 +76,7 @@ class PostgresRepository(AbstractRepository):
 
 ```python
 from typing import Protocol, runtime_checkable
+from attrs import define, field
 
 # --- 第一步：定义纯粹的接口协议（类型 2）---
 @runtime_checkable
@@ -84,19 +86,22 @@ class Repository(Protocol):
 
 
 # --- 第二步：独立的后端实现——只知道自己的存储逻辑 ---
+@define
 class PostgresRepository:
-    def __init__(self, conn) -> None:
-        self._conn = conn
+    conn = field()
 
     def add_product(self, product: Product) -> None:
-        self._conn.execute("INSERT INTO products ...")
+        self.conn.execute("INSERT INTO products ...")
 
     def get_by_sku(self, sku: str) -> Product | None:
-        return self._conn.execute("SELECT ... WHERE sku = ?", sku).fetchone()
+        return self.conn.execute("SELECT ... WHERE sku = ?", sku).fetchone()
 
 
+@define
 class DictRepository:
-    def __init__(self) -> None:
+    _storage: dict[str, Product] = field(init=False)
+
+    def __attrs_post_init__(self) -> None:
         self._storage: dict[str, Product] = {}
 
     def add_product(self, product: Product) -> None:
@@ -107,19 +112,22 @@ class DictRepository:
 
 
 # --- 第三步：追踪能力作为独立的装饰器层 ---
+@define
 class TrackingRepository:
     """包装任意 Repository，添加 seen 追踪——纯组合，零继承。"""
 
-    def __init__(self, repo: Repository) -> None:
-        self._repo = repo
+    repo: Repository
+    seen: set[Product] = field(init=False)
+
+    def __attrs_post_init__(self) -> None:
         self.seen: set[Product] = set()
 
     def add_product(self, product: Product) -> None:
-        self._repo.add_product(product)
+        self.repo.add_product(product)
         self.seen.add(product)
 
     def get_by_sku(self, sku: str) -> Product | None:
-        product = self._repo.get_by_sku(sku)
+        product = self.repo.get_by_sku(sku)
         if product:
             self.seen.add(product)
         return product

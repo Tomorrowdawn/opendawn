@@ -4,6 +4,7 @@ category: case-study
 tags:
   - serialization
   - schema
+  - serde
   - msgspec
   - pydantic
   - validation

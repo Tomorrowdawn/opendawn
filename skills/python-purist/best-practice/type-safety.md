@@ -99,7 +99,7 @@ user = msgspec.json.decode(b'{"name":"Alice","age":30}', type=User)
 # attrs —— 丰富的验证和转换
 import attrs
 
-@attrs.define
+@define
 class User:
     name: str = attrs.field(validator=attrs.validators.instance_of(str))
     age: int = attrs.field(converter=int)

@@ -6,6 +6,8 @@ tags:
   - two-phase-init
   - constructor
   - fail-fast
+  - anti-pattern
+  - dependency-injection
 related:
   - ../best-practice/fail-fast.md
   - ../best-practice/composition-over-inheritance.md
@@ -62,7 +64,7 @@ user = await repo.get_by_id("42")
 ## 好代码：依赖注入
 
 ```python
-from dataclasses import dataclass
+from attrs import define
 from typing import Protocol
 
 class Pool(Protocol):
@@ -74,7 +76,7 @@ class Connection(Protocol):
     async def fetchrow(self, query: str, *args) -> "Row | None": ...
     async def execute(self, query: str, *args) -> str: ...
 
-@dataclass
+@define
 class UserRepository:
     pool: Pool  # 注入，不创建
 
@@ -91,9 +93,14 @@ repo = UserRepository(pool=pool)
 user = await repo.get_by_id("42")
 
 # 测试环境：传入 fake pool
+@define
 class FakePool:
-    def __init__(self, rows: list[dict]):
-        self._conn = FakeConnection(rows)
+    rows: list[dict]
+    _conn: FakeConnection = field(init=False)
+
+    def __attrs_post_init__(self):
+        self._conn = FakeConnection(self.rows)
+
     async def acquire(self):
         return self._conn
     async def close(self):

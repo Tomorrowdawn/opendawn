@@ -7,6 +7,7 @@ tags:
   - error-handling
   - fail-fast
   - defensive-programming
+  - anti-pattern
 related:
   - ../best-practice/fail-fast.md
   - exception-swallowing.md

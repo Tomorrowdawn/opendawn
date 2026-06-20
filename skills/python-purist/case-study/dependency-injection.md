@@ -8,11 +8,15 @@ tags:
   - composition
   - factory
   - decoupling
+  - design-pattern
+  - protocol
 related:
   - ../best-practice/composition-over-inheritance.md
   - ../best-practice/fail-fast.md
   - runtime-resources.md
 summary: "Eliminating hardcoded factory calls inside modules — every layer becomes independently testable, swappable, and explicit about its dependencies."
+related_initialization:
+  - ../cookbook/initialization-patterns.md
 ---
 
 # Dependency Injection: Testable by Default
@@ -85,26 +89,26 @@ async def main():
 from __future__ import annotations
 
 import asyncpg
+from attrs import define
 
 
+@define
 class UserService:
     """依赖通过构造函数注入——显式、可替换、可检查。"""
-
-    def __init__(self, db: asyncpg.Pool) -> None:
-        self._db = db
+    db: asyncpg.Pool
 
     async def find_by_id(self, user_id: int) -> dict | None:
-        async with self._db.acquire() as conn:
+        async with self.db.acquire() as conn:
             row = await conn.fetchrow("SELECT * FROM users WHERE id=$1", user_id)
             return dict(row) if row else None
 
 
+@define
 class OrderService:
-    def __init__(self, db: asyncpg.Pool) -> None:
-        self._db = db
+    db: asyncpg.Pool
 
     async def list_by_user(self, user_id: int) -> list[dict]:
-        async with self._db.acquire() as conn:
+        async with self.db.acquire() as conn:
             rows = await conn.fetch("SELECT * FROM orders WHERE user_id=$1", user_id)
             return [dict(r) for r in rows]
 
@@ -135,7 +139,7 @@ async def test_find_by_id() -> None:
 
 ## 为什么好 / 关键差异
 
-1. **显式依赖**：`UserService.__init__` 的签名明确宣告"我需要一个 `asyncpg.Pool`"——IDE 和类型检查器可以验证调用者是否正确传递了参数。
+1. **显式依赖**：`UserService` 的字段声明明确宣告"我需要一个 `asyncpg.Pool`"——IDE 和类型检查器可以验证调用者是否正确传递了参数。
 2. **测试零摩擦**：不需要 patch 全局变量或启动数据库，直接传入 `FakePool`，测试变成纯内存操作——快且隔离。
 3. **生命周期清晰**：`build_services` 作为唯一创建点，`Service` 不需要知道 pool 从何而来。关闭 `pool` 的时机也集中在一处，不会出现"忘记关闭全局连接"的问题。
 4. **面向接口而非实现**：进一步改进时可将 `asyncpg.Pool` 替换为 `PoolProtocol`，彻底解耦数据库实现——但这是第二步优化；构造函数注入本身就是迈向可测试性的第一步，也是最重要的一步。

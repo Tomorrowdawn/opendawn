@@ -8,6 +8,8 @@ tags:
   - set
   - mutable
   - type-safety
+  - anti-pattern
+  - immutable
 related:
   - ../best-practice/type-safety.md
   - ../best-practice/fail-fast.md
@@ -23,7 +25,7 @@ You define a class representing a point in 2D space. You make it hashable so it 
 ## Bad Code: Mutable Object as Dict Key
 
 ```python
-@dataclass
+@define
 class Point:
     x: int
     y: int
@@ -66,7 +68,7 @@ assert points  # {Point(x=999, y=2): "originally (1,2)"} -- but it IS there!
 ## Good Code: Immutable Objects (Preferred)
 
 ```python
-@dataclass(frozen=True)  # frozen=True makes it immutable AND generates correct __hash__
+@define(frozen=True)  # frozen=True makes it immutable AND generates correct __hash__
 class Point:
     x: int
     y: int
@@ -87,7 +89,7 @@ assert points[Point(x=999, y=2)] == "second"
 ## Good Code: Hash on Immutable Subset (When Immutability Is Impractical)
 
 ```python
-@dataclass
+@define
 class UserSession:
     """A session that tracks mutable state but is keyed by immutable ID."""
     session_id: str       # immutable -- never changes

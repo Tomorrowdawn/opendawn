@@ -7,6 +7,8 @@ tags:
   - conditional
   - branching
   - polymorphism
+  - design-pattern
+  - protocol
 related:
   - ../best-practice/composition-over-inheritance.md
 summary: "Replacing sprawling if/elif/else conditional branches with composable strategy objects — algorithms vary independently and are testable in isolation."
@@ -21,12 +23,12 @@ summary: "Replacing sprawling if/elif/else conditional branches with composable 
 ## 坏代码
 
 ```python
-from dataclasses import dataclass
+from attrs import define
 from decimal import Decimal
 from typing import Any
 
 
-@dataclass
+@define
 class PaymentOrder:
     order_id: str
     amount: Decimal
@@ -73,18 +75,18 @@ async def charge(order: PaymentOrder, user_ctx: dict[str, Any]) -> bool:
 ```python
 from __future__ import annotations
 
-from dataclasses import dataclass
+from attrs import define
 from decimal import Decimal
 from typing import Protocol
 
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class ChargeRequest:
     order_id: str
     amount: Decimal
 
 
-@dataclass(frozen=True)
+@define(frozen=True)
 class ChargeResult:
     success: bool
     transaction_id: str
@@ -97,16 +99,16 @@ class PaymentStrategy(Protocol):
     async def refund(self, transaction_id: str, amount: Decimal) -> ChargeResult: ...
 
 
+@define
 class WechatPayment:
-    def __init__(self, appid: str, mch_id: str, notify_url: str) -> None:
-        self._appid = appid
-        self._mch_id = mch_id
-        self._notify_url = notify_url
+    appid: str
+    mch_id: str
+    notify_url: str
 
     async def charge(self, request: ChargeRequest) -> ChargeResult:
         resp = await wechat_sdk.pay(
-            appid=self._appid, mch_id=self._mch_id,
-            amount=str(request.amount), notify_url=self._notify_url,
+            appid=self.appid, mch_id=self.mch_id,
+            amount=str(request.amount), notify_url=self.notify_url,
         )
         return ChargeResult(
             success=resp["return_code"] == "SUCCESS",
@@ -117,10 +119,10 @@ class WechatPayment:
         ...
 
 
+@define
 class AlipayPayment:
-    def __init__(self, app_id: str, private_key: str) -> None:
-        self._app_id = app_id
-        self._private_key = private_key
+    app_id: str
+    private_key: str
 
     async def charge(self, request: ChargeRequest) -> ChargeResult:
         resp = await alipay_sdk.create_order(

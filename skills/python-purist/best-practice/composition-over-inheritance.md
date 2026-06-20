@@ -8,6 +8,7 @@ tags:
   - protocol
   - specialization
   - lsp
+  - design-pattern
 related:
   - ../case-study/inheritance-vs-composition.md
   - ../case-study/template-method-antipattern.md
@@ -47,9 +48,9 @@ summary: "Three inheritance types must not be mixed. Code sharing → compositio
 ### 代码共享的正确做法：组合 + 依赖注入
 
 ```python
-from dataclasses import dataclass
+from attrs import define, field
 
-@dataclass
+@define
 class LLMService:
     """LLM 调用服务——通过组合拥有 client 和 cost_tracker。"""
     client: LLMClient            # 注入，不创建
@@ -71,10 +72,10 @@ def build_llm_service(api_key: str) -> LLMService:
 
 ```python
 # ❌ 在 __init__ 中创建复杂对象——隐藏依赖，难以测试
-@dataclass
+@define
 class BadService:
     api_key: str
-    def __post_init__(self):
+    def __attrs_post_init__(self):
         self.client = OpenAIClient(self.api_key)       # 硬编码依赖
         self.tracker = CostTracker(budget_limit=10.0)   # 无法替换
 
@@ -88,13 +89,16 @@ class AbstractRepository(abc.ABC):
     def _add(self, item): ...   # ← 子类填空
 
 # ✅ 用装饰器模式（wrapper）替代模板方法
+@define
 class TrackingRepository:
-    def __init__(self, repo: Repository):
-        self._repo = repo
-        self.seen: set[Product] = set()
+    repo: Repository
+    seen: set[Product] = field(init=False)
+
+    def __attrs_post_init__(self):
+        self.seen = set()
 
     def add(self, item):
-        self._repo.add(item)
+        self.repo.add(item)
         self.seen.add(item)
 ```
 

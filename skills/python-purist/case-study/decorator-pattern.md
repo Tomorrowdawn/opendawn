@@ -6,6 +6,7 @@ tags:
   - cross-cutting
   - wrapper
   - composition
+  - design-pattern
 related:
   - ../best-practice/composition-over-inheritance.md
 summary: "Using Python native decorators for cross-cutting concerns (logging, timing, auth) instead of copy-paste or inheritance chains."

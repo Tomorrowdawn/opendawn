@@ -8,6 +8,7 @@ tags:
   - facade
   - dependency-injection
   - stub
+  - design-pattern
 related:
   - ../best-practice/red-green-tdd.md
   - ../best-practice/explicit-over-implicit.md

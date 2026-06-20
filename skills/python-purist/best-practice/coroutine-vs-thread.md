@@ -8,6 +8,7 @@ tags:
   - thread
   - concurrency
   - gil
+  - performance
 summary: "I/O-bound → asyncio coroutines. CPU-bound → ProcessPoolExecutor. Never mix threads when the GIL is involved."
 ---
 

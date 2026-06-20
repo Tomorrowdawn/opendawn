@@ -8,8 +8,10 @@ tags:
   - attribute-error
   - explicit-over-implicit
   - property
+  - anti-pattern
 related:
   - ../best-practice/explicit-over-implicit.md
+  - ../best-practice/direct-over-indirect.md
 summary: "hasattr() silently swallows AttributeErrors in properties on Python 2 and behaves inconsistently across versions. Use try/except AttributeError or getattr() with a sentinel instead."
 ---
 

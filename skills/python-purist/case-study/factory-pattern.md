@@ -6,7 +6,10 @@ tags:
   - classmethod
   - configuration
   - object-creation
+  - initialization
+  - constructor
   - testing
+  - design-pattern
 related:
   - ../best-practice/composition-over-inheritance.md
   - ../best-practice/fail-fast.md
@@ -65,62 +68,8 @@ db_config = AgentConfig("db_row", {"agent_name": "helper", "llm_model": "claude-
 4. **类型不安全**：`data: dict | str` 要求调用方知道什么来源对应什么类型。传错类型（比如 yaml 源传 dict）可能不会立即报错，但语义错误。
 5. **测试困难**：测试 yaml 解析和 api 解析的逻辑纠缠在同一个 `__init__` 里，任何一个来源的测试都依赖于整个构造器。
 
-## 好代码：`@classmethod` 工厂 + 独立 Schema
+## 正确做法
 
-```python
-from dataclasses import dataclass
-import yaml
-
-@dataclass(frozen=True)
-class AgentConfig:
-    """统一 Schema —— __init__ 只接受明确的字段"""
-    name: str
-    model: str = "gpt-4"
-    temperature: float = 0.7
-    max_tokens: int = 4096
-
-    @classmethod
-    def from_yaml(cls, path: str) -> "AgentConfig":
-        with open(path) as f:
-            raw = yaml.safe_load(f)
-        return cls(
-            name=raw["name"],
-            model=raw.get("model", "gpt-4"),
-            temperature=raw.get("temperature", 0.7),
-            max_tokens=raw.get("max_tokens", 4096),
-        )
-
-    @classmethod
-    def from_db_row(cls, row: dict) -> "AgentConfig":
-        return cls(
-            name=row["agent_name"],
-            model=row.get("llm_model", "gpt-4"),
-            temperature=float(row.get("temp", 0.7)),
-            max_tokens=row.get("tokens", 4096),
-        )
-
-    @classmethod
-    def from_api_response(cls, payload: dict) -> "AgentConfig":
-        agent = payload["agent"]
-        return cls(
-            name=agent["name"],
-            model=agent.get("model_name", "gpt-4"),
-            temperature=agent.get("temperature", 0.7),
-            max_tokens=payload.get("limits", {}).get("max_tokens", 4096),
-        )
-
-# 使用
-config = AgentConfig.from_yaml("config.yaml")
-db_config = AgentConfig.from_db_row({"agent_name": "helper", "llm_model": "claude-3"})
-api_config = AgentConfig.from_api_response({"agent": {"name": "bot", "model_name": "gemini"}})
-```
-
-## 为什么好 / 关键差异
-
-- **`__init__` 回归本质**：构造函数只做字段赋值，不再包含任何解析或映射逻辑。`AgentConfig` 的字段语义由 dataclass 自身定义。
-- **每个来源 = 一个独立的 `@classmethod`**：YAML 的字段映射不会污染 DB row 的映射，也不会影响 API response 的映射。新增来源只需增加一个 `@classmethod`，不修改现有代码。
-- **类型安全**：每个工厂方法的参数类型都是具体的 —— `from_yaml(path: str)`、`from_db_row(row: dict)` —— 调用者不会传错类型。
-- **测试友好**：测试 `from_yaml` 不依赖数据库，测试 `from_db_row` 不需要 YAML 文件。每个工厂方法可以独立测试。
-- **自文档化**：看到 `AgentConfig.from_db_row(row)` 就知道它在将数据库行映射为配置对象，意图比 `AgentConfig("db_row", data)` 清晰一百倍。
-
-> 核心原则：`__init__` 只做字段赋值。用 `@classmethod` 工厂方法处理不同来源的数据转换。
+> **完整方案见 `cookbook/initialization-patterns.md`**（模式 4：多来源构建 → `from_*` classmethods）。
+>
+> 核心原则：`__init__` 只做字段赋值。每个来源 = 一个独立的 `@classmethod`（`from_yaml`、`from_db_row`、`from_api_response`），各自负责自己的字段映射，然后委托给 `cls(name=..., model=...)`。新增来源只增方法，不改现有代码。类型安全、测试友好、自文档化。

@@ -25,11 +25,11 @@ summary: "External resources — subprocesses, DB connections, temp files, socke
 ## 推荐的模式
 
 ```python
-from dataclasses import dataclass
+from attrs import define
 from contextlib import asynccontextmanager
 import asyncio
 
-@dataclass
+@define
 class DatabaseClient:
     """不持有连接，只描述如何连接。"""
     conn_string: str

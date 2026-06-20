@@ -6,6 +6,7 @@ tags:
   - error-handling
   - except-pass
   - debugging
+  - anti-pattern
 related:
   - ../best-practice/fail-fast.md
 summary: "except: pass and overly broad except Exception are the most insidious bug factories — errors vanish without a trace, corrupting state silently."

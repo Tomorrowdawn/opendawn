@@ -7,3 +7,6 @@ pnpm-lock.yaml
 .agents/
 .claude/
 .opencode/skills/
+
+# python
+__pycache__/

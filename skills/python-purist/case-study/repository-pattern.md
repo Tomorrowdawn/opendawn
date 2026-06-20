@@ -7,6 +7,8 @@ tags:
   - abstraction
   - storage
   - decoupling
+  - design-pattern
+  - protocol
 related:
   - ../best-practice/composition-over-inheritance.md
   - ../best-practice/serde-boundary.md
@@ -125,15 +127,15 @@ class TortoiseUserRepository:
 
 
 # --- 业务层依赖协议而非实现 ---
+from attrs import define, field
 
+@define
 class AuthService:
     """只依赖 UserRepository 协议——不知道背后是 Tortoise 还是内存字典。"""
-
-    def __init__(self, users: UserRepository) -> None:
-        self._users = users
+    users: UserRepository
 
     async def authenticate(self, name: str, password: str) -> User | None:
-        user = await self._users.find_active_by_name(name)
+        user = await self.users.find_active_by_name(name)
         if user is None:
             return None
         if not verify_password(password, user.hashed_password):
@@ -141,26 +143,28 @@ class AuthService:
         return user
 
 
+@define
 class ProfileService:
-    def __init__(self, users: UserRepository) -> None:
-        self._users = users
+    users: UserRepository
 
     async def get_profile(self, user_id: int) -> dict | None:
-        user = await self._users.find_by_id(user_id)
+        user = await self.users.find_by_id(user_id)
         if user is None or user.status != "active":
             return None
         return {"name": user.name, "email": user.email}
 
     async def search_by_name(self, keyword: str) -> list[User]:
-        return await self._users.search_by_name(keyword)
+        return await self.users.search_by_name(keyword)
 
 
 # --- 测试：内存仓储轻松替换 ---
+@define
 class InMemoryUserRepository:
     """测试替身——无需数据库，纯内存操作。"""
+    _users: dict[int, User] = field(init=False)
 
-    def __init__(self) -> None:
-        self._users: dict[int, User] = {}
+    def __attrs_post_init__(self) -> None:
+        self._users = {}
 
     async def find_by_id(self, user_id: int) -> User | None:
         return self._users.get(user_id)
