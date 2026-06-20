@@ -29,8 +29,8 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 | Skill | Purpose |
 |-------|---------|
 | `python-purist` | Opinionated Python coding standards |
-| `scenario-first` | Communication — ground every discussion in end-to-end scenario traces |
-| `git-worktree` | Safe git workflow — isolated worktrees, conventional commits, self-review |
+| `probe-and-plan` | Phase 1 planning — run real commands, clarify quickly, design with scenarios, write coding instructions |
+| `yuucoder` | Phase 2 implementation — execute instructions in a worktree, commit, verify, self-review, report blockers |
 
 ## Constraints
 

@@ -1,6 +1,6 @@
 ---
 name: python-purist
-description: Opinionated Python coding standards — type safety, explicit over implicit, composition over inheritance, coroutines over threads. Triggers on Python code authoring, refactoring, code review. Use `uv run python scripts/purist` to browse best practices, case studies, and cookbook recipes. Read this **every time** you write or review Python code.
+description: Opinionated Python coding standards — type safety, explicit over implicit, composition over inheritance, coroutines over threads. Triggers on Python code authoring, refactoring, code review. Confirm the installed skill path, then use `uv run python <python-purist-skill-dir>/scripts/purist` to browse best practices, case studies, and cookbook recipes. Read this **every time** you write or review Python code.
 user-invocable: true
 ---
 
@@ -11,9 +11,9 @@ user-invocable: true
 
 ## Prerequisites
 
-> **Important**: Always invoke `scripts/purist` via `uv run python scripts/purist <args>` (or your project's Python interpreter). Do **not** run it directly as `scripts/purist` or `python scripts/purist` — this would use the global Python and may cause version/compatibility issues.
+> **Important**: First confirm the installed `python-purist` skill path in the current repository, then invoke its helper via `uv run python <python-purist-skill-dir>/scripts/purist <args>` (or your project's Python interpreter). Common installs use `.agents/skills/python-purist`, while this source repository uses `skills/python-purist`. Do **not** run it directly as `<python-purist-skill-dir>/scripts/purist` or `python <python-purist-skill-dir>/scripts/purist` — this would use the global Python and may cause version/compatibility issues.
 
-`uv run python scripts/purist check` uses **ruff** for function complexity analysis (McCabe + too-many-statements). On first run, it auto-installs ruff via `uv` if available. Recommended setup:
+`uv run python <python-purist-skill-dir>/scripts/purist check` uses **ruff** for function complexity analysis (McCabe + too-many-statements). On first run, it auto-installs ruff via `uv` if available. Recommended setup:
 
 ```bash
 # Install uv (one-time)
@@ -93,21 +93,21 @@ For everything not covered by a cookbook recipe, use this table to find the righ
 Find relevant cases efficiently:
 ```bash
 # First: see what tags exist — pick the right keyword for your problem
-uv run python scripts/purist tags                  # list all 150+ tags with file counts
-uv run python scripts/purist tags init             # filter tags by substring (e.g., initialization)
+uv run python <python-purist-skill-dir>/scripts/purist tags                  # list all 150+ tags with file counts
+uv run python <python-purist-skill-dir>/scripts/purist tags init             # filter tags by substring (e.g., initialization)
 
 # Primary workflow: find all cases related to a best-practice doc
-uv run python scripts/purist related direct-over-indirect.md
+uv run python <python-purist-skill-dir>/scripts/purist related direct-over-indirect.md
 
 # Search by keyword across titles, tags, and summaries
-uv run python scripts/purist search hasattr
-uv run python scripts/purist search initialization
+uv run python <python-purist-skill-dir>/scripts/purist search hasattr
+uv run python <python-purist-skill-dir>/scripts/purist search initialization
 
 # Browse all case studies with titles and tags
-uv run python scripts/purist list case-study
+uv run python <python-purist-skill-dir>/scripts/purist list case-study
 ```
 
-> 💡 **Tip**: Always run `uv run python scripts/purist tags` first to discover what tags are available before searching. The tag system was designed for agent search — find the right tag and you'll find the right doc.
+> 💡 **Tip**: Always run `uv run python <python-purist-skill-dir>/scripts/purist tags` first to discover what tags are available before searching. The tag system was designed for agent search — find the right tag and you'll find the right doc.
 
 For each matching case study:
 1. Read the anti-pattern (the "wrong" code). Understand what makes it bad.
@@ -133,17 +133,17 @@ No over-engineering. No "I might need this later."
 Re-read the case studies from Step 3. Run the quality checklist and verify your code against every item:
 
 ```bash
-uv run python scripts/purist checklist
+uv run python <python-purist-skill-dir>/scripts/purist checklist
 ```
 
 If any checklist item fails, find the relevant case study to understand the correct pattern:
 ```bash
-uv run python scripts/purist search "<keyword from the failing item>"
+uv run python <python-purist-skill-dir>/scripts/purist search "<keyword from the failing item>"
 ```
 
 Also run the automated scan to catch anti-patterns:
 ```bash
-uv run python scripts/purist check src/
+uv run python <python-purist-skill-dir>/scripts/purist check src/
 ```
 
 ### Step 8: Regression Test (Green) + Self-Verify
@@ -178,7 +178,7 @@ Load this skill when:
 
 ## Core Principles
 
-Only seven. Each is a concrete "how", not an abstract "whether". Specific rules and examples live in the best-practice docs — search them with `uv run python scripts/purist search <keyword>`.
+Only seven. Each is a concrete "how", not an abstract "whether". Specific rules and examples live in the best-practice docs — search them with `uv run python <python-purist-skill-dir>/scripts/purist search <keyword>`.
 
 | # | Principle | Best-Practice Doc |
 |---|-----------|-------------------|
@@ -193,21 +193,21 @@ Only seven. Each is a concrete "how", not an abstract "whether". Specific rules 
 ## Browsing the Skill
 
 ```bash
-uv run python scripts/purist list [best-practice|case-study|cookbook|all]  # list docs with tags
-uv run python scripts/purist related <filename.md>                # find related docs
-uv run python scripts/purist tags [<filter>]                      # list all tags with file counts
-uv run python scripts/purist search <keyword>                     # search by keyword across all docs
-uv run python scripts/purist checklist                            # quality checklist
-uv run python scripts/purist check src/                           # scan for anti-patterns
+uv run python <python-purist-skill-dir>/scripts/purist list [best-practice|case-study|cookbook|all]  # list docs with tags
+uv run python <python-purist-skill-dir>/scripts/purist related <filename.md>                # find related docs
+uv run python <python-purist-skill-dir>/scripts/purist tags [<filter>]                      # list all tags with file counts
+uv run python <python-purist-skill-dir>/scripts/purist search <keyword>                     # search by keyword across all docs
+uv run python <python-purist-skill-dir>/scripts/purist checklist                            # quality checklist
+uv run python <python-purist-skill-dir>/scripts/purist check src/                           # scan for anti-patterns
 ```
 
-**Tip for agents**: Run `uv run python scripts/purist tags` first to discover what tags exist, then use `uv run python scripts/purist search <tag>` to find the exact doc. This is faster than guessing keywords.
+**Tip for agents**: Confirm the skill path first. Then run `uv run python <python-purist-skill-dir>/scripts/purist tags` to discover what tags exist, and use `uv run python <python-purist-skill-dir>/scripts/purist search <tag>` to find the exact doc. This is faster than guessing keywords.
 
 Search across all docs with grep/rg directly on `skills/python-purist/`. Only 49 files.
 
 ## Quality Checklist
 
-Run `uv run python scripts/purist checklist` for the full list. Eight concrete items — each is a yes/no question you can answer in 5 seconds. Details for any item: `uv run python scripts/purist search <keyword>`.
+Run `uv run python <python-purist-skill-dir>/scripts/purist checklist` for the full list. Eight concrete items — each is a yes/no question you can answer in 5 seconds. Details for any item: `uv run python <python-purist-skill-dir>/scripts/purist search <keyword>`.
 
 - [ ] All function params and returns fully type-annotated? Zero `Any`, `type: ignore`, `# noqa`?
 - [ ] Serialization boundaries have explicit schema (msgspec.Struct)? Data validated once at boundary, never patched downstream?
@@ -220,4 +220,4 @@ Run `uv run python scripts/purist checklist` for the full list. Eight concrete i
 
 ---
 
-**Pre-audit your code**: run `uv run python scripts/purist check <your_source_dir>` before submitting a PR.
+**Pre-audit your code**: run `uv run python <python-purist-skill-dir>/scripts/purist check <your_source_dir>` before submitting a PR.
