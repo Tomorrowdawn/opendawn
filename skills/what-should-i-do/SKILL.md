@@ -52,6 +52,42 @@ Do not treat any one source as absolute. Reconcile conflicts by naming them: "ro
 
 ---
 
+## Scenario Guidance
+
+Use scenarios to make orientation self-contained. A scenario is a short trace from a real actor and context to the decision or problem that makes a todo matter now.
+
+Direct example:
+
+```text
+- Todo: Inspect the active .tmp worktree before starting a new packaging task.
+  Scenario Trace:
+    Maintainer starts a morning session
+      -> roadmap says skill distribution is the priority
+        -> recent commits and .tmp artifacts show local dogfooding work in progress
+          -> checking the worktree first prevents duplicating an unfinished handoff or missing the real blocker
+```
+
+Use this shape:
+
+```text
+- Todo: {action}
+  Scenario Trace:
+    {actor/context}
+      -> {evidence or current state}
+        -> {problem, blocker, or decision point}
+          -> {why this action matters now}
+```
+
+Choose the abstraction level that exposes the decision:
+
+- If explaining roadmap position, trace from the human's current work session to the roadmap milestone and the next meaningful constraint.
+- If explaining a todo, trace from the likely workflow to the unresolved blocker or validation step.
+- If explaining a risk, trace from recent activity to the point where stale notes, dirty state, or missing verification could mislead the next move.
+
+Keep each scenario concrete, evidence-based, and level-appropriate. Do not invent users, deadlines, production incidents, or requirements just to make a scenario sound important.
+
+---
+
 ## Output Contract
 
 Report exactly these four sections.
@@ -100,7 +136,11 @@ Use this format:
 
 ```text
 - Todo: {action}
-  Scenario: {actor/context} -> {problem or decision point} -> {why this action matters now}
+  Scenario Trace:
+    {actor/context}
+      -> {evidence or current state}
+        -> {problem, blocker, or decision point}
+          -> {why this action matters now}
 ```
 
 Prefer a few meaningful todos over a long grab bag. If the evidence is weak, say so and frame the todo as a candidate.
