@@ -82,7 +82,7 @@ prompt_conflict() {
 
     if $YES; then
         cp "$src" "$dest"
-        ((STATS_UPDATED++))
+        ((++STATS_UPDATED))
         echo "    overwritten (-y)"
         return
     fi
@@ -94,25 +94,25 @@ prompt_conflict() {
         case "$choice" in
             o)
                 cp "$src" "$dest"
-                ((STATS_UPDATED++))
+                ((++STATS_UPDATED))
                 echo "    overwritten"
                 return
                 ;;
             s)
-                ((STATS_SKIPPED++))
+                ((++STATS_SKIPPED))
                 echo "    skipped"
                 return
                 ;;
             O)
                 CONFLICT_MODE="overwrite"
                 cp "$src" "$dest"
-                ((STATS_UPDATED++))
+                ((++STATS_UPDATED))
                 echo "    overwritten (all)"
                 return
                 ;;
             S)
                 CONFLICT_MODE="skip"
-                ((STATS_SKIPPED++))
+                ((++STATS_SKIPPED))
                 echo "    skipped (all)"
                 return
                 ;;
@@ -132,7 +132,7 @@ merge_file() {
     if [ ! -e "$dest" ]; then
         mkdir -p "$(dirname "$dest")"
         cp "$src" "$dest"
-        ((STATS_NEW++))
+        ((++STATS_NEW))
         echo "  + $rel"
         return
     fi
@@ -150,11 +150,11 @@ merge_file() {
     case "$CONFLICT_MODE" in
         overwrite)
             cp "$src" "$dest"
-            ((STATS_UPDATED++))
+            ((++STATS_UPDATED))
             echo "  ~ $rel (overwritten)"
             ;;
         skip)
-            ((STATS_SKIPPED++))
+            ((++STATS_SKIPPED))
             echo "  - $rel (skipped)"
             ;;
         *)
@@ -165,6 +165,9 @@ merge_file() {
 
 merge_tree() {
     local src_dir="$1" dest_dir="$2" prefix="$3"
+
+    src_dir="${src_dir%/}"
+    dest_dir="${dest_dir%/}"
 
     # Skip if src and dest are the same directory (local self-install)
     if [ "$(realpath "$src_dir" 2>/dev/null)" = "$(realpath "$dest_dir" 2>/dev/null)" ] 2>/dev/null; then
