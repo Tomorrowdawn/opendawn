@@ -31,7 +31,30 @@ git branch -a
 git status --short
 ```
 
-Use this to understand recent changes, active branches, and dirty state. If the working tree is dirty, do not overwrite unrelated changes. Plan around them or report the conflict.
+Then read the project `AGENTS.md` if it exists.
+
+Use this to understand recent changes, active branches, dirty state, and project-level worktree setup rules. If the working tree is dirty, do not overwrite unrelated changes. Plan around them or report the conflict.
+
+---
+
+## Worktree Environment Policy
+
+Before writing instructions for a task that will require an implementation worktree, check `AGENTS.md` for a project-level policy named like:
+
+- `Worktree environment reuse`
+- `Worktree Environment`
+- `Dependency Cache`
+- `Setup Reuse`
+
+If the policy is missing, ask the human to add project-level rules before handoff. Do not guess a cache strategy in the coding instruction.
+
+Coding instructions should avoid concrete cache implementations unless `AGENTS.md` already defines them. Prefer:
+
+```text
+Environment setup: follow AGENTS.md worktree environment reuse policy.
+```
+
+Do not globally prescribe reuse for `node_modules`, `.venv`, `target`, package-manager stores, or similar language-specific caches from this platform-independent skill.
 
 ---
 
@@ -233,6 +256,7 @@ Write instructions at `.tmp/{task}/{slug}-instructions.md`:
 **Estimated scope**: {single implementation run}
 **Depends on**: {none | phase | instruction path}
 **Can run in parallel with**: {none | instruction path}
+**Environment setup**: follow AGENTS.md worktree environment reuse policy
 
 ## Objective
 {One sentence}

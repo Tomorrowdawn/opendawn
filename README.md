@@ -63,6 +63,7 @@ Platform-independent agent skills.
 |-------|-------------|
 | `python-purist` | Opinionated Python coding standards — type safety, composition over inheritance, coroutines over threads |
 | `probe-and-plan` | Phase 1 planning — run real commands, clarify quickly, design with scenarios, write coding instructions |
+| `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |
 | `yuucoder` | Phase 2 implementation — execute instructions in a worktree, commit, verify, self-review, report blockers |
 
 ## Development
@@ -79,7 +80,10 @@ opendawn/
 ├── skills/                        # Platform-independent agent skills
 │   ├── python-purist/SKILL.md
 │   ├── probe-and-plan/SKILL.md
+│   ├── what-should-i-do/SKILL.md
 │   └── yuucoder/SKILL.md
+├── roadmap/                       # Git-tracked long-term project plans
+│   └── index.md
 ├── .opencode/
 │   ├── agents/                    # OpenCode agent definitions
 │   │   ├── yuudev.md

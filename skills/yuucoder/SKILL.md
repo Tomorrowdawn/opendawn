@@ -75,6 +75,18 @@ git worktree add .tmp/{task}/worktree {branch}
 cd .tmp/{task}/worktree
 ```
 
+Read the worktree's project `AGENTS.md` and find the worktree environment reuse policy. The section may be named `Worktree environment reuse`, `Worktree Environment`, `Dependency Cache`, or `Setup Reuse`.
+
+Apply the declared environment reuse policy exactly before running verification commands.
+
+If the policy is missing and verification requires installed dependencies, generated files, or build caches, stop and report:
+
+```text
+Project AGENTS.md does not define how worktree environments should reuse dependency caches. Cannot choose a safe setup strategy.
+```
+
+Do not default to reinstalling dependencies. Do not copy caches from another checkout. Do not invent language-specific setup rules such as `node_modules`, `.venv`, `target`, or package-manager store reuse unless `AGENTS.md` declares them.
+
 Sync with other workers on the same branch if a remote branch exists:
 
 ```bash

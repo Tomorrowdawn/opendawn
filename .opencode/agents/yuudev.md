@@ -160,15 +160,37 @@ git branch -a
 git status --short
 ```
 
+Then read the project `AGENTS.md` if it exists.
+
 You need to know:
 - What was recently changed, by whom, and why.
 - What branches exist and what's in flight.
 - Whether the working tree is dirty.
+- What project-level rules govern worktree environment reuse.
 
 This reconnaissance informs everything downstream:
 - Is this bug in code that just changed? → Suspect the recent commit.
 - Is the user requesting a feature while 3 branches are already open? → Question capacity.
 - Is the repo accumulating small, disconnected fixes? → Flag potential tech debt spiral.
+
+## Worktree Environment Policy
+
+Before writing coding instructions for any task that will require a YuuCoder worktree, inspect `AGENTS.md` for a project-level section named like:
+
+- `Worktree environment reuse`
+- `Worktree Environment`
+- `Dependency Cache`
+- `Setup Reuse`
+
+If no such policy exists, stop before handoff and tell the human to add a project-level worktree environment reuse rule. Do not guess or invent a temporary cache strategy in the coding instruction.
+
+Coding instructions may say:
+
+```text
+Environment setup: follow AGENTS.md worktree environment reuse policy.
+```
+
+Do not hardcode language-specific reuse mechanisms such as `node_modules`, `.venv`, `target`, or package-manager stores unless `AGENTS.md` already defines that exact project policy.
 
 ---
 
@@ -469,6 +491,7 @@ Format: `.tmp/{task}/{slug}-instructions.md`
 **Estimated scope**: {single YuuCoder run}
 **Depends on**: {none | Phase N | instruction file path}
 **Can run in parallel with**: {none | instruction file path(s) — only if same Phase and no data dependency AND no Files claimed overlap}
+**Environment setup**: follow AGENTS.md worktree environment reuse policy
 
 ## Objective
 {One sentence — what this achieves}

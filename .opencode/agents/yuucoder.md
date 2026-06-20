@@ -164,7 +164,21 @@ Multiple parallel yuucoders on the same Phase share the same branch via separate
 cd .tmp/{task}/worktree
 ```
 
-### Step 3 — Sync with Parallel Coders
+### Step 3 — Read Worktree Environment Policy
+
+Read the worktree's project `AGENTS.md`. Find the section named like `Worktree environment reuse`, `Worktree Environment`, `Dependency Cache`, or `Setup Reuse`.
+
+If the section exists, follow it exactly to prepare dependencies, build caches, and verification environment.
+
+If the section is missing and the instruction's verification commands require installed dependencies, generated files, or build caches, stop and report exactly:
+
+```text
+Project AGENTS.md does not define how worktree environments should reuse dependency caches. Cannot choose a safe setup strategy.
+```
+
+Do not default to a cold dependency install. Do not copy dependencies or caches from another checkout. Do not invent package-manager-specific setup rules unless `AGENTS.md` explicitly defines them.
+
+### Step 4 — Sync with Parallel Coders
 
 Before starting work, pull changes from other yuucoders on the same branch:
 
@@ -175,7 +189,7 @@ git pull --rebase origin {branch} 2>/dev/null || true
 If pull fails (conflicts with parallel coder's changes):
 → **Stop.** "Rebase conflict with parallel coder on branch {branch}. This indicates overlapping Files claimed — a design defect. Report to YuuDev."
 
-### Step 4 — Verify State
+### Step 5 — Verify State
 
 ```bash
 git status --short
