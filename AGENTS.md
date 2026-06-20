@@ -26,6 +26,12 @@ external-wiki/     → reference docs for the OpenCode plugin system
 
 Platform-independent agent skills distributed via the `npx skills` CLI (Vercel ecosystem). Each skill is a directory with a `SKILL.md` containing YAML frontmatter + markdown body. Name must match `^[a-z0-9]+(-[a-z0-9]+)*$` and the directory name.
 
+| Skill | Purpose |
+|-------|---------|
+| `python-purist` | Opinionated Python coding standards |
+| `scenario-first` | Communication — ground every discussion in end-to-end scenario traces |
+| `git-worktree` | Safe git workflow — isolated worktrees, conventional commits, self-review |
+
 ## Constraints
 
 - Do **not** commit a lockfile. It is intentionally absent.

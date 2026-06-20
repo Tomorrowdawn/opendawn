@@ -62,6 +62,8 @@ Platform-independent agent skills.
 | Skill | Description |
 |-------|-------------|
 | `python-purist` | Opinionated Python coding standards — type safety, composition over inheritance, coroutines over threads |
+| `scenario-first` | Communication skill — grounds every discussion in end-to-end scenario traces, eliminates ambiguity |
+| `git-worktree` | Safe git workflow — isolated worktrees, conventional commits, mandatory self-review, PR documentation |
 
 ## Development
 
@@ -76,6 +78,8 @@ pnpm check          # TypeScript type checking
 opendawn/
 ├── skills/                        # Platform-independent agent skills
 │   ├── python-purist/SKILL.md
+│   ├── scenario-first/SKILL.md
+│   └── git-worktree/SKILL.md
 ├── .opencode/
 │   ├── agents/                    # OpenCode agent definitions
 │   │   ├── yuudev.md
