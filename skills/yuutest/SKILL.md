@@ -1,6 +1,6 @@
 ---
 name: yuutest
-description: DO NOT READ THIS UNLESS USER INVOKED EXPLICITLY. 
+description: Red-green test subworkflow used during the test-first phase of a coding instruction. Loaded by YuuCoder before changing implementation code, when the instruction contains a ## Test Boundary section. Catches invalid red failures and bad-test anti-patterns at the boundary selected by the instruction.
 ---
 
 # YuuTest

@@ -18,10 +18,19 @@ pnpm build            # compile with tsc (only needed for npm publish)
 
 ```
 skills/            → platform-independent skills installed via `npx skills`
+.opencode/         → dogfooding config (custom agents)
 roadmap/           → git-tracked long-term plans and desired final states
-.opencode/         → dogfooding config (custom agents + commands)
 external-wiki/     → reference docs for the OpenCode plugin system
 ```
+
+Two agents: `YuuDev` (primary, default direct mode + opt-in batch-launcher mode)
+and `YuuCoder` (subagent, large-task worktree executor). Their system prompts
+embed git discipline, scenario communication, commit hygiene, and the lazy
+reflection ladder directly. Skills are opt-in for deep-dive (`probe-and-plan`)
+and large-task spec (`coding-instruction`).
+
+The `ponytail` skill (MIT, external) is installed by `install.sh` and
+referenced from both agents' prompts; the ladder core is inlined too.
 
 ## Worktree environment reuse
 
@@ -44,11 +53,12 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 
 | Skill | Purpose |
 |-------|---------|
+| `probe-and-plan` | Opt-in deep-dive — take-a-step-back, ought-to-be, design format. Loaded only when symptoms recur or architecture mismatch is suspected. |
+| `coding-instruction` | Spec for large-task workflow — instruction format, Change Scope, Test Boundary, blocker protocol, worktree lifecycle, task sizing. |
+| `yuutest` | Red-green subworkflow used during the test-first phase of a coding instruction. |
 | `python-purist` | Opinionated Python coding standards |
-| `probe-and-plan` | Phase 1 planning — run real commands, clarify quickly, design with scenarios, write coding instructions |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |
-| `yuucoder` | Phase 2 implementation — execute instructions in a worktree, commit, verify, self-review, report blockers |
-| `yuutest` | Test-first subworkflow — define and execute boundary-focused red-green tests |
+| `ponytail` *(externally installed)* | Lazy reflection ladder. Both agents' prompts inline the ladder core and reference this skill. |
 
 ## Constraints
 

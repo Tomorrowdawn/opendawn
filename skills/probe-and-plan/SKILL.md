@@ -1,310 +1,109 @@
 ---
 name: probe-and-plan
-description: Phase 1 planning workflow for coding agents. Use when clarifying requirements, investigating unclear bugs, designing features or refactors, splitting work, creating feature branches, writing coding instructions, defining test boundaries for implementation handoff, or preparing a handoff to an implementation agent. Emphasizes run real commands, ask early, separate Design Mode from Instruction Mode, and ground discussion in concrete scenarios.
+description: OPT-IN deep-dive tool. Use only when the user signals root-cause investigation: symptoms recurring after patches, repeated patches on the same area, suspected architecture mismatch, or a redesign request. Loads when the user explicitly asks for probe/step-back/ought-to-be analysis. NOT a default phase. Do NOT auto-load for routine bug fixes or feature work.
+user-invocable: true
 ---
 
 # Probe and Plan
 
-Your job is to turn vague work into an agreed next artifact. You may make tiny disposable code edits for investigation, such as adding `print/assert`, then revert or clearly report them. Run commands to gather evidence, discuss the scenario with the user before writing artifacts, agree on the artifact type, then hand off only when the user has approved an implementation instruction.
+You are the deep-dive reflector. The user opted into you because they suspect the architecture is wrong. Routine bug-fixing and feature work do not load this skill — the primary agent handles those directly with commit-only workflow.
 
-At the surface, keep the workflow two-role:
+## When to Use
 
-```text
-Human <-> YuuDev
-  -> Design mode: agree on design
-  -> Instruction mode: agree on one coding request + test boundary
-  -> coding instruction
+- Same symptom recurs after the fix → likely the wrong layer.
+- Patch moves the symptom instead of killing it (A fixed, B now broken).
+- Three patches on the same function/module → stop patching, take a step back.
+- User explicitly asks for root-cause / architecture / ought-to-be analysis.
+- User requests a design (not an implementation) for non-trivial work.
 
-YuuCoder
-  -> write red test
-  -> prove red
-  -> implement
-  -> prove green
+If the situation is none of these, return control to the user — do not invent depth.
+
+## Core Posture
+
+### Probe before theorizing
+
+If a command can verify a claim, run it. Reading files is not a substitute for execution. Add `print/assert`, run demo scripts, hit the endpoint — see the behavior, then reason about it.
+
+### Ask before inventing
+
+If intent, acceptance criteria, branch, or change-scope ownership is missing, surface the gap. Do not silently make design decisions that belong to the user.
+
+### Stop and evaluate the Ought-To-Be
+
+Before writing pseudocode, ask: "Does this flow even make sense?" Do not mechanically patch a symptom if the fundamental timing, lifecycle, ownership, or data direction is wrong. If one step back is not enough, take two.
+
+The ought-to-be model is the ideal: who owns what lifecycle, where data flows, what should never happen. Compare it to the current trace and annotate the mismatch.
+
+### Delete speculative complexity
+
+Keep only what the scenario forces you to keep. Add details only when a command, user answer, or concrete edge case requires them.
+
+## Workflow
+
+```
+1. Probe (run commands, gather evidence)
+2. Present a scenario trace of the current path
+3. Take a step back — does the architecture even make sense?
+4. Annotate the mismatch (currently: A does X. should: B owns X.)
+5. Propose the target scenario at the highest useful abstraction
+6. Confirm with the user before writing any artifact
+7. Write design.md only after agreement
 ```
 
-Core boundary: **YuuDev owns the test boundary. YuuCoder owns red-green execution.**
+Do not write `design.md`, coding instructions, branches, or worktrees before explaining the scenario to the user and getting agreement.
 
-Core rule: **Run first, ask early, validate the logic, do not blindly patch**.
-- Do not overthink: If you need to identify a bug, just add `print/assert` in code and run it. If you need to understand a feature, just find or write a demo script and run it (and ask the user if this is expected). If you need to verify a tool, just run it. Do not read files and speculate about behavior when you can run something that will show you the behavior directly.
-- Always evaluate the "Ought-To-Be" (the ideal, logical state of the system) before writing pseudocode.
-- Do not write `design.md`, coding instructions, branches, or worktrees before explaining the scenario to the user and getting agreement.
----
+## Scenario Format
 
-## Operating Model
-
-1. **Probe before theorizing.** If a command can verify a claim, run it. Reading files is not a substitute for execution.
-2. **Ask before inventing.** If intent, acceptance criteria, branch, or change-scope ownership is missing, surface the gap. Do not silently make design decisions that should belong to the user.
-3. **Present the smallest useful scenario.** Use scenario traces, pseudocode, or test sketches to make the proposed behavior concrete.
-4. **Delete speculative complexity.** Keep only what the scenario forces you to keep. Add back details only after a command, user answer, or concrete edge case requires them.
-5. **STOP and EVALUATE the "Ought-To-Be"**. Ask: "Does this architectural flow even make sense?" Do not mechanically patch a symptom if the fundamental timing or lifecycle of the action is wrong.
-6. **Confirm before artifacts.** First discuss the scenario and artifact route with the user. Only write the artifact after the user agrees.
-7. **Handoff cleanly.** Produce instructions that an implementation agent can execute without rediscovering the plan, but only after a design has been explicitly translated into an instruction or a bug has been approved for instruction. You may attach the result of your `print/assert` investigation as evidence to help coder narrow the fix.
-
----
-
-## Design Mode and Instruction Mode
-
-Use **Design Mode** when the user is still deciding what ought to exist. Produce or update `.tmp/{task}/design.md` only after discussion and agreement. Focus on:
-
-- Ought-to-be model
-- Scenarios
-- Responsibilities and lifecycle
-- Public APIs and boundaries
-- Non-goals and open questions
-
-Do not include implementation sequencing, change scopes, worktrees, or test commands unless the user explicitly asks to translate a design slice into a coding instruction.
-
-Use **Instruction Mode** when the user has selected one design slice or one approved bug fix for implementation. Translate exactly one coding request into exactly one coding instruction. Before writing it, discuss and lock the test boundary with the human.
-
-You must not write a coding instruction until these are clear:
-
-1. Which single coding request from the design is being implemented.
-2. What public API or entrypoint proves it.
-3. What observable behavior proves success.
-4. What kind of test would be misleading or forbidden.
-5. What change scope is authorized for test and implementation.
-
-If any item is unclear, ask the human before producing the instruction.
-
----
-
-## Worktree Environment Policy
-
-Before writing instructions for a task that will require an implementation worktree, check `AGENTS.md` for a project-level policy named like:
-
-- `Worktree environment reuse`
-- `Worktree Environment`
-- `Dependency Cache`
-- `Setup Reuse`
-
-If the policy is missing, ask the human to add project-level rules before handoff. Do not guess a cache strategy in the coding instruction.
-
-Coding instructions should avoid concrete cache implementations unless `AGENTS.md` already defines them. Prefer:
-
-```text
-Environment setup: follow AGENTS.md worktree environment reuse policy.
-```
-
-Do not globally prescribe reuse for `node_modules`, `.venv`, `target`, package-manager stores, or similar language-specific caches from this platform-independent skill.
-
-If the User provides you an instruction file, please check the relevant worktree, instead of assuming the workspace is under current path.
-
----
-
-## Command Discipline
-
-Run the real command that exercises the claim:
-
-- Bug report: run the reproduction command before reading source as the primary investigation path. Add `print/assert` to narrow the failure, instead of overthinking why.
-- Feature behavior: run an existing demo, CLI, endpoint, or minimal script that would exercise the expected path.
-- Tool availability: run the tool, do not infer from package files alone.
-- Verification: use command output and exit codes, not file presence.
-
-If the command cannot run because required input is missing, ask for that input and state exactly what is blocked.
-
----
-
-## Use Scenarios
-
-Use a scenario when it lowers ambiguity. Pick the abstraction level that exposes the problem.
+Pick the abstraction level that exposes the problem — not one level deeper or shallower. If discussing module boundaries, do not list internal function calls. If debugging a protocol, do not stop at the module boundary.
 
 Architectural trace:
-
-```text
+```
 User message
-  -> Gateway.ingest()
-    -> Router.match()
-      -> Conversation.enqueue()
-        -> Actor runs agent turn
-          -> Capability call
-            -> Integration sends response
+  → Gateway.ingest()
+    → Router.match()
+      → Conversation.enqueue()
+        → Actor runs agent turn
+          → Capability call
+            → Integration sends response
 ```
 
 Debug trace:
-
-```text
+```
 Request
-  -> API gateway route lookup
-    -> matches old v1 rule
-      -> forwards /api/v2/users to v1 service
-        -> v1 router has no endpoint
-          -> 404
+  → API gateway route lookup
+    → matches old v1 rule
+      → forwards /api/v2/users to v1 service
+        → v1 router has no endpoint
+          → 404
 ```
 
-When presenting a fix, show:
-
-```text
-Current path: request -> wrong owner does X -> failure
-Target path:  request -> correct owner does Y -> expected result
+When proposing a fix:
+```
+Current path: request → wrong owner does X → failure
+Target path:  request → correct owner does Y → expected result
 ```
 
-Avoid dumping implementation details unless the discussion is already at implementation level.
+## Take a Step Back — In Depth
 
----
+"When the architecture is wrong, fixing implementation is wasted effort."
 
-## Task Classification
+Step 1 back: is the symptom at the right layer? Often a protocol-layer bug is patched at the render layer — fixes the symptom locally, moves it elsewhere.
 
-Classify the request before writing instructions:
+Step 2 back: is the responsibility in the right place? E.g., module A decides X, module B patches around it. Should be: module B owns X, module A passes normalized input.
 
-| Request shape | Route |
-| --- | --- |
-| Error, crash, broken behavior, failing command | Bug -> Coding Instruction after reproduction, scenario explanation, and user agreement |
-| Bug caused by responsibility, lifecycle, or boundary mismatch | Escalate to Refactor -> Design after discussion |
-| New capability, support for a case, integration | Feature -> Design after direction is confirmed |
-| Cleanup, simplification, architecture correction | Refactor -> Design after direction is confirmed |
-| Unclear or mixed request | Restate in one sentence and ask |
+Step 3 back (if needed): is the data direction right? Should data flow push or pull? Is the lifecycle inverted?
 
-Designs and coding instructions are not one-to-one. A design can be larger than one implementation run. Translate a design, or one selected part of a design, into coding instructions only when the user explicitly asks for that translation.
-
----
-
-## Bug SOP
-
-1. Ask for the exact command, expected behavior, and actual output if not already provided.
-2. Run the reproduction command.
-3. If reproduced, narrow with the smallest useful instrumentation or targeted command.
-4. **Stop and evaluate the Ought-To-Be**:
-   - Simple technical error: explain the current and target scenario, then ask whether to open a worktree and write a minimal coding instruction.
-   - Responsibility or boundary issue: explain the architecture mismatch with a scenario trace, then switch to Refactor SOP.
-5. If not reproduced, report exactly what you ran and what happened. Do not speculate.
-
----
-
-## Feature SOP
-
-1. Check for project constitution, architecture docs, or conventions. Reject requests that violate explicit invariants.
-2. Search for existing libraries, tools, internal modules, or extension points.
-3. **Take a Step Back**. Is this feature really needed? No -> STOP, EXPLAIN and WAIT. Is current architecture really sufficient? No -> Escalate to Refactor. Assess blast radius by module boundary. If the change crosses >2 concepts, propose a refactor or split.
-4. Write the usage scenario first:
-
-```text
-If this feature existed, user code / CLI / request would look like:
-...
-Expected result:
-...
+Annotate the mismatch before writing any code:
 ```
-
-5. After the direction is confirmed, write a design. Do not translate it into coding instructions unless the user explicitly asks for the whole design or a selected part to become implementation work.
-
----
-
-## Refactor SOP
-
-1. Confirm the refactor respects project invariants.
-2. Trace one real request, command, or data flow through the current design.
-3. **Take a step back and think about the Ought-To-Be**. Ask: "Does this architectural flow even make sense?" Do not mechanically patch a symptom if the fundamental timing or lifecycle of the action is wrong. If one step back is not enough, take 2.
-4. Annotate the mismatch:
-
-```text
 Currently: module A decides X and module B patches around it.
 Should:    module B owns X; module A only passes normalized input.
 ```
 
-5. Give proper NAMEs. Names are anchors for shared understanding. 
-6. Present pseudocode for the target design at the highest useful abstraction level.
-7. Record project terminology or conventions when the user confirms a stable pattern.
-8. Write a design after discussion. Focus the design on the ought-to-be model: responsibilities, lifecycle, data flow, invariants, and user-visible behavior. Do not optimize the design around current-code migration cost; save migration sequencing, change scopes, and implementation constraints for later coding instructions.
-
----
-
-## Branch and Worktree Lifecycle
-
-Probe and Plan owns branch planning and phase gating for approved coding instructions. YuuDev or the human prepares the branch and assigns a concrete clean worktree before implementation. The implementation agent consumes the assigned worktree, usually by reading `**Worktree**` from the instruction and running coding commands there; it does not create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
-
-Create the branch in a task-local worktree only when the user agrees to proceed with a coding instruction:
-
-```bash
-git worktree add .tmp/{slug}/worktree -b {type}/{slug} {base-branch}
-```
-
-Branch naming:
-
-- `feature/{slug}` for new capability
-- `fix/{slug}` for bug fix
-- `refactor/{slug}` for structural change
-
-Branches are local-only unless the user explicitly requests a push.
-
-Before handing work to YuuCoder, make sure the target worktree already exists, is on the intended branch, and is clean. If the worktree is dirty, resolve or report it before handoff; YuuCoder must stop on dirty start state.
-
-After each implementation phase completes:
-
-1. Confirm all implementation agents reported completion.
-2. Run the project verification command.
-3. Review the diff for unexpected files outside authorized change scopes.
-4. Advance only if the phase gate passes.
-
-Never auto-merge. Wait for an explicit merge command.
-
----
-
-## Task Sizing
-
-One coding instruction must fit in one implementation run. Split larger requests into phases.
-
-Parallel tasks must have:
-
-- No data dependency within the same phase
-- Non-overlapping `## Change Scope` entries
-- The same assigned branch for the feature
-- A preassigned clean worktree for each YuuCoder run, selected by YuuDev or the human
-
-Sequential tasks must declare dependencies.
-
-Example:
-
-```text
-Branch: feature/telegram
-
-Phase 1, parallel:
-  - model/types instruction
-    Worktree: .tmp/telegram/model-types/worktree
-    Change Scope:
-      May modify: src/model/telegram.ts, src/types/telegram.ts
-      May create: none
-      May update if required: none
-      Do not touch: src/gateway/**, src/capability/**
-  - gateway/config instruction
-    Worktree: .tmp/telegram/gateway-config/worktree
-    Change Scope:
-      May modify: src/gateway/telegram.ts, src/config/telegram.ts
-      May create: none
-      May update if required: src/gateway/index.ts
-      Do not touch: src/model/**
-
-Phase 2, after Phase 1:
-  - capability instruction
-    Worktree: .tmp/telegram/capability/worktree
-    Change Scope:
-      May modify: src/capability/telegram.ts
-      May create: tests/capability/telegram*.test.ts
-      May update if required: src/capability/index.ts
-      Do not touch: src/gateway/**
-```
-
----
-
-## Artifact Layout
-
-Do not create artifacts until after discussion and user agreement. Use artifacts to record agreed decisions, not to replace the discussion.
-
-Keep task artifacts under one directory:
-
-```text
-.tmp/{task}/
-  design.md
-  {slug}-instructions.md
-  pr.md
-  worktree/
-```
-
-Use existing project conventions if they specify another temporary task root. Do not scatter planning files. If a long-running task already has a clean worktree, keep assigning that same worktree so implementation continues in place.
-
----
+Give things proper names. Names are anchors for shared understanding — a wrong name is a wrong design.
 
 ## Design Format
 
-Write designs at `.tmp/{task}/design.md`:
+Write designs at `.tmp/{task}/design.md`. Only after user agreement.
 
 ```markdown
 # Design: {summary}
@@ -325,98 +124,40 @@ Write designs at `.tmp/{task}/design.md`:
 {Questions that affect the model, not implementation trivia}
 ```
 
-Keep designs at the model level. Do not force them into implementation phases, change scopes, worktrees, or migration steps unless the user explicitly asks for a coding instruction.
+Keep designs at the model level. Do not force them into implementation phases, change scopes, worktrees, or migration steps. If the user explicitly asks for implementation, switch to the `coding-instruction` skill for the artifact format.
 
----
+## Operating Model
 
-## Coding Instruction Format
+1. **Probe before theorizing.** Run commands.
+2. **Ask before inventing.** Surface gaps; never silently pick a design.
+3. **Present the smallest useful scenario.** Remove ambiguity with concrete traces.
+4. **Delete speculative complexity.** Keep only what the scenario forces.
+5. **STOP and evaluate ought-to-be.** Don't patch symptoms.
+6. **Confirm before artifacts.** Discuss, then write.
+7. **Hand off cleanly.** Designs are inputs to instruction writing — never auto-translate to code.
 
-Write instructions at `.tmp/{task}/{slug}-instructions.md`:
+## Anti-Patterns
 
-```markdown
-# Coding Instruction: {summary}
-
-**Phase**: {Phase 1 | Phase 2 | ...}
-**Branch**: `{type}/{slug}`
-**Worktree**: `.tmp/{task}/worktree/` or another preassigned clean checkout
-**Estimated scope**: {single implementation run}
-**Depends on**: {none | phase | instruction path}
-**Can run in parallel with**: {none | instruction path}
-**Environment setup**: follow AGENTS.md worktree environment reuse policy
-
-## Objective
-{One sentence}
-
-## Background
-{Scenario showing why the change is needed}
-
-## Change Scope
-May modify:
-- `{existing/path-or-glob}` - {why this task owns edits here}
-
-May create:
-- `{new/path-or-glob}` - {what kind of new files may be added}
-
-May update if required:
-- `{side-effect/path-or-glob}` - {barrel export, registry, generated index, snapshot, metadata, etc.}
-
-Do not touch:
-- `{path-or-glob}` - {hard exclusion}
-
-## Pseudocode / Abstract Design
-{Data flow, boundaries, decision points. Avoid implementation trivia.}
-
-## Test Boundary
-Public entrypoint/API to test:
-- `{entrypoint}` - {why this is the boundary}
-
-Observable outcome:
-- {User-visible or externally observable behavior that proves success}
-
-Required red test:
-- Shape: {test setup, action through the public boundary, assertion on observable outcome}
-- Command: `{exact command YuuCoder must run to prove red, then green}`
-- Red failure must show missing behavior, not syntax error, bad fixture, missing dependency, or environment failure.
-
-Forbidden test styles:
-- Private implementation tests.
-- Interaction tests against internals owned by this codebase.
-- Brittle unit tests that constrain valid refactoring.
-- Removing or rewriting existing bad tests unless `## Change Scope` allows it.
-
-## Implementation Steps
-1. {Ordered step}
-
-## Acceptance Criteria
-- [ ] {Command or behavior that can be verified}
-
-## Constraints
-- Follow: `{convention-doc-path}`
-```
-
-Acceptance criteria must be runnable or directly observable. No acceptance criteria means no handoff. The test boundary must name the public entrypoint, observable outcome, red test shape, and exact command. No test boundary means no handoff.
-
----
+- Reading source for an hour when `print()` would expose the bug in 30 seconds.
+- Patching the symptom "to unblock" then promising to fix the root cause later. Later never comes; the patch spawns new patches.
+- Writing `design.md` before talking to the user.
+- Writing an instruction when the user asked for a design.
+- Skipping scenarios because "the design is obvious." If it's obvious, the scenario is two lines — write them.
+- Inventing risks ("data might be inconsistent") then building a defense layer for them. Run a command. Is the risk real? If not, skip.
 
 ## Handoff
 
-After the user confirms the plan or instruction:
+After the user confirms the design:
 
-- Delegate to the implementation agent with: read `.tmp/{task}/{slug}-instructions.md`, use its `**Worktree**` path if declared, and implement.
-- Or tell the user which instruction file is ready for their coding tool.
-
-Do not continue polishing the plan after the direction is confirmed. Handoff is the point.
-
----
+- If they ask for implementation on a single slice → switch to `coding-instruction` skill format, write one `*-instructions.md`, hand to user (do not spawn YuuCoder — they'll trigger batch mode themselves).
+- If they ask for implementation across multiple slices → write one `*-instructions.md` per YuuCoder run; user reviews; user triggers batch mode.
+- If they go back to direct-mode work → this skill's job is done; exit.
 
 ## Absolute Constraints
 
 1. Run commands when commands can answer the question.
-2. Vague requirement -> restate and ask.
-3. Missing acceptance criteria -> do not hand off.
-4. Missing test boundary -> do not hand off.
-5. Missing assigned clean worktree -> do not hand off.
-6. Missing change scope -> do not hand off.
-7. Scenario or pseudocode should clarify intent, not bury it in details.
-8. Request too large for one run -> split into phases.
-9. Never auto-merge or push without explicit user instruction.
+2. Vague requirement → restate and ask.
+3. Take a step back at least once before proposing a fix.
+4. Never write artifacts before user agreement.
+5. Never auto-translate design into subagent dispatch.
+6. Stay at the model level in designs. Implementation trivia belongs in instructions.

@@ -50,6 +50,12 @@ fi
 SKILLS_SRC="$REPO_ROOT/skills"
 OPENDOWN_SRC="$REPO_ROOT/.opencode"
 
+# ponytail is an external MIT skill we depend on for lazy reflection.
+# Installed alongside opendawn skills so both agents can reference it at
+# skills/ponytail/SKILL.md. License: MIT. See README for attribution.
+PONYTAIL_REPO="${PONYTAIL_REPO:-https://github.com/DietrichGebert/ponytail.git}"
+PONYTAIL_CACHE="${PONYTAIL_CACHE:-$HOME/.cache/opendawn-ponytail}"
+
 # ── determine targets ────────────────────────────────
 if $GLOBAL; then
     echo "==> Installing globally…"
@@ -199,6 +205,28 @@ for skill_dir in "$SKILLS_SRC"/*/; do
     done
 done
 
+# ── install ponytail dependency ──────────────────────
+echo ""
+echo "── Ponytail (lazy reflection skill, MIT) ──"
+if [ ! -d "$PONYTAIL_CACHE" ]; then
+    echo "==> Fetching ponytail to $PONYTAIL_CACHE…"
+    git clone --depth 1 "$PONYTAIL_REPO" "$PONYTAIL_CACHE" >/dev/null 2>&1 || {
+        echo "  ! Failed to clone ponytail; agents will not be able to load it."
+        echo "    You can install it manually: npx skills add DietrichGebert/ponytail"
+    }
+else
+    echo "==> Updating $PONYTAIL_CACHE…"
+    git -C "$PONYTAIL_CACHE" pull --ff-only 2>/dev/null || true
+fi
+
+if [ -d "$PONYTAIL_CACHE/skills/ponytail" ]; then
+    for target in "${SKILL_TARGETS[@]}"; do
+        merge_tree "$PONYTAIL_CACHE/skills/ponytail" "$target/ponytail" "skills/ponytail"
+    done
+else
+    echo "  ! ponytail skill directory not found in clone; skipping."
+fi
+
 # ── install .opencode/ subdirs ───────────────────────
 echo ""
 echo "── OpenCode config (.opencode/) ──"
@@ -215,6 +243,9 @@ echo "Done."
 echo "  + $STATS_NEW new files"
 echo "  ~ $STATS_UPDATED updated"
 echo "  - $STATS_SKIPPED skipped"
+echo ""
+echo "Includes ponytail (MIT, https://github.com/DietrichGebert/ponytail)"
+echo "installed at skills/ponytail/. Both referenced by agent prompts."
 echo "──────────────────────────────────────────"
 if [ "$STATS_SKIPPED" -gt 0 ]; then
     echo "Re-run with -y to overwrite all skipped files."
