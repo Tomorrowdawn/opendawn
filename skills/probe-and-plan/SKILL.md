@@ -5,10 +5,12 @@ description: Phase 1 planning workflow for coding agents. Use when clarifying re
 
 # Probe and Plan
 
-Your job is to turn vague work into executable coding instructions. Do not write production code. Run commands to gather evidence, ask when intent is unclear, agree on the shape of the solution, then hand off to an implementation agent.
+Your job is to turn vague work into an agreed next artifact. You may make tiny disposable code edits for investigation, such as adding `print/assert`, then revert or clearly report them. Run commands to gather evidence, discuss the scenario with the user before writing artifacts, agree on the artifact type, then hand off only when the user has approved an implementation instruction.
 
-Core rule: **run first, ask early, do not overthink**.
-
+Core rule: **Run first, ask early, validate the logic, do not blindly patch**.
+- Do not overthink: If you need to identify a bug, just add `print/assert` in code and run it. If you need to understand a feature, just find or write a demo script and run it (and ask the user if this is expected). If you need to verify a tool, just run it. Do not read files and speculate about behavior when you can run something that will show you the behavior directly.
+- Always evaluate the "Ought-To-Be" (the ideal, logical state of the system) before writing pseudocode.
+- Do not write `design.md`, coding instructions, branches, or worktrees before explaining the scenario to the user and getting agreement.
 ---
 
 ## Operating Model
@@ -17,23 +19,9 @@ Core rule: **run first, ask early, do not overthink**.
 2. **Ask before inventing.** If intent, acceptance criteria, branch, or file ownership is missing, surface the gap. Do not silently make design decisions that should belong to the user.
 3. **Present the smallest useful scenario.** Use scenario traces, pseudocode, or test sketches to make the proposed behavior concrete.
 4. **Delete speculative complexity.** Keep only what the scenario forces you to keep. Add back details only after a command, user answer, or concrete edge case requires them.
-5. **Handoff cleanly.** Produce instructions that an implementation agent can execute without rediscovering the plan.
-
----
-
-## Git Reconnaissance
-
-Before planning in a git repository, run:
-
-```bash
-git log --oneline -20
-git branch -a
-git status --short
-```
-
-Then read the project `AGENTS.md` if it exists.
-
-Use this to understand recent changes, active branches, dirty state, and project-level worktree setup rules. If the working tree is dirty, do not overwrite unrelated changes. Plan around them or report the conflict.
+5. **STOP and EVALUATE the "Ought-To-Be"**. Ask: "Does this architectural flow even make sense?" Do not mechanically patch a symptom if the fundamental timing or lifecycle of the action is wrong.
+6. **Confirm before artifacts.** First discuss the scenario and artifact route with the user. Only write the artifact after the user agrees.
+7. **Handoff cleanly.** Produce instructions that an implementation agent can execute without rediscovering the plan, but only after a design has been explicitly translated into an instruction or a bug has been approved for instruction. You may attach the result of your `print/assert` investigation as evidence to help coder narrow the fix.
 
 ---
 
@@ -62,7 +50,7 @@ Do not globally prescribe reuse for `node_modules`, `.venv`, `target`, package-m
 
 Run the real command that exercises the claim:
 
-- Bug report: run the reproduction command before reading source as the primary investigation path.
+- Bug report: run the reproduction command before reading source as the primary investigation path. Add `print/assert` to narrow the failure, instead of overthinking why.
 - Feature behavior: run an existing demo, CLI, endpoint, or minimal script that would exercise the expected path.
 - Tool availability: run the tool, do not infer from package files alone.
 - Verification: use command output and exit codes, not file presence.
@@ -115,10 +103,13 @@ Classify the request before writing instructions:
 
 | Request shape | Route |
 | --- | --- |
-| Error, crash, broken behavior, failing command | Bug |
-| New capability, support for a case, integration | Feature |
-| Cleanup, simplification, architecture correction | Refactor |
+| Error, crash, broken behavior, failing command | Bug -> Coding Instruction after reproduction, scenario explanation, and user agreement |
+| Bug caused by responsibility, lifecycle, or boundary mismatch | Escalate to Refactor -> Design after discussion |
+| New capability, support for a case, integration | Feature -> Design after direction is confirmed |
+| Cleanup, simplification, architecture correction | Refactor -> Design after direction is confirmed |
 | Unclear or mixed request | Restate in one sentence and ask |
+
+Designs and coding instructions are not one-to-one. A design can be larger than one implementation run. Translate a design, or one selected part of a design, into coding instructions only when the user explicitly asks for that translation.
 
 ---
 
@@ -127,9 +118,9 @@ Classify the request before writing instructions:
 1. Ask for the exact command, expected behavior, and actual output if not already provided.
 2. Run the reproduction command.
 3. If reproduced, narrow with the smallest useful instrumentation or targeted command.
-4. Classify the root cause:
-   - Simple technical error: write a minimal coding instruction.
-   - Responsibility or boundary issue: switch to Refactor SOP and explain with a scenario trace.
+4. **Stop and evaluate the Ought-To-Be**:
+   - Simple technical error: explain the current and target scenario, then ask whether to open a worktree and write a minimal coding instruction.
+   - Responsibility or boundary issue: explain the architecture mismatch with a scenario trace, then switch to Refactor SOP.
 5. If not reproduced, report exactly what you ran and what happened. Do not speculate.
 
 ---
@@ -138,7 +129,7 @@ Classify the request before writing instructions:
 
 1. Check for project constitution, architecture docs, or conventions. Reject requests that violate explicit invariants.
 2. Search for existing libraries, tools, internal modules, or extension points.
-3. Assess blast radius by module boundary. If the change crosses too many modules, propose a refactor or split.
+3. **Take a Step Back**. Is this feature really needed? No -> STOP, EXPLAIN and WAIT. Is current architecture really sufficient? No -> Escalate to Refactor. Assess blast radius by module boundary. If the change crosses >2 concepts, propose a refactor or split.
 4. Write the usage scenario first:
 
 ```text
@@ -148,7 +139,7 @@ Expected result:
 ...
 ```
 
-5. After the direction is confirmed, write coding instructions.
+5. After the direction is confirmed, write a design. Do not translate it into coding instructions unless the user explicitly asks for the whole design or a selected part to become implementation work.
 
 ---
 
@@ -156,26 +147,29 @@ Expected result:
 
 1. Confirm the refactor respects project invariants.
 2. Trace one real request, command, or data flow through the current design.
-3. Annotate the mismatch:
+3. **Take a step back and think about the Ought-To-Be**. Ask: "Does this architectural flow even make sense?" Do not mechanically patch a symptom if the fundamental timing or lifecycle of the action is wrong. If one step back is not enough, take 2.
+4. Annotate the mismatch:
 
 ```text
 Currently: module A decides X and module B patches around it.
 Should:    module B owns X; module A only passes normalized input.
 ```
 
-4. Present pseudocode for the target design at the highest useful abstraction level.
-5. Record project terminology or conventions when the user confirms a stable pattern.
+5. Give proper NAMEs. Names are anchors for shared understanding. 
+6. Present pseudocode for the target design at the highest useful abstraction level.
+7. Record project terminology or conventions when the user confirms a stable pattern.
+8. Write a design after discussion. Focus the design on the ought-to-be model: responsibilities, lifecycle, data flow, invariants, and user-visible behavior. Do not optimize the design around current-code migration cost; save migration sequencing, file claims, and implementation constraints for later coding instructions.
 
 ---
 
 ## Branch and Worktree Lifecycle
 
-Probe and Plan owns branch planning and phase gating. YuuDev or the human prepares the branch and assigns a concrete clean worktree before implementation. The implementation agent consumes the current assigned worktree; it does not create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
+Probe and Plan owns branch planning and phase gating for approved coding instructions. YuuDev or the human prepares the branch and assigns a concrete clean worktree before implementation. The implementation agent consumes the assigned worktree, usually by reading `**Worktree**` from the instruction and running coding commands there; it does not create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
 
-Create the feature branch when the user agrees to proceed:
+Create the branch in a task-local worktree only when the user agrees to proceed with a coding instruction:
 
 ```bash
-git checkout -b {type}/{slug} {base-branch}
+git worktree add .tmp/{slug}/worktree -b {type}/{slug} {base-branch}
 ```
 
 Branch naming:
@@ -235,6 +229,8 @@ Phase 2, after Phase 1:
 
 ## Artifact Layout
 
+Do not create artifacts until after discussion and user agreement. Use artifacts to record agreed decisions, not to replace the discussion.
+
 Keep task artifacts under one directory:
 
 ```text
@@ -246,6 +242,33 @@ Keep task artifacts under one directory:
 ```
 
 Use existing project conventions if they specify another temporary task root. Do not scatter planning files. If a long-running task already has a clean worktree, keep assigning that same worktree so implementation continues in place.
+
+---
+
+## Design Format
+
+Write designs at `.tmp/{task}/design.md`:
+
+```markdown
+# Design: {summary}
+
+## Situation
+{What command, scenario, or request revealed the need}
+
+## Ought-To-Be Model
+{Ideal responsibilities, lifecycle, data flow, and invariants}
+
+## Scenarios
+{Current path and target path for important user-visible flows}
+
+## Boundaries
+{Owners, modules, APIs, and non-goals}
+
+## Open Questions
+{Questions that affect the model, not implementation trivia}
+```
+
+Keep designs at the model level. Do not force them into implementation phases, file claims, worktrees, or migration steps unless the user explicitly asks for a coding instruction.
 
 ---
 
@@ -296,7 +319,7 @@ Acceptance criteria must be runnable or directly observable. No acceptance crite
 
 After the user confirms the plan or instruction:
 
-- Delegate to the implementation agent with: read `.tmp/{task}/{slug}-instructions.md` and implement.
+- Delegate to the implementation agent with: read `.tmp/{task}/{slug}-instructions.md`, use its `**Worktree**` path if declared, and implement.
 - Or tell the user which instruction file is ready for their coding tool.
 
 Do not continue polishing the plan after the direction is confirmed. Handoff is the point.
