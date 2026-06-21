@@ -48,6 +48,7 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 | `probe-and-plan` | Phase 1 planning — run real commands, clarify quickly, design with scenarios, write coding instructions |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |
 | `yuucoder` | Phase 2 implementation — execute instructions in a worktree, commit, verify, self-review, report blockers |
+| `yuutest` | Test-first subworkflow — define and execute boundary-focused red-green tests |
 
 ## Constraints
 

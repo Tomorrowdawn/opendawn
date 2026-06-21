@@ -1,6 +1,6 @@
 ---
 name: yuucoder
-description: Phase 2 implementation workflow for coding agents. Use when executing a prepared coding instruction in an already-assigned clean git worktree, including instructions that declare the worktree path under .tmp; committing changes, running real verification commands, self-reviewing, appending to a PR handoff document, or reporting blockers instead of redesigning the task.
+description: Phase 2 implementation workflow for coding agents. Use when executing a prepared coding instruction in an already-assigned clean git worktree, including instructions with a Test Boundary that require red-green execution; committing changes, running real verification commands, self-reviewing, appending to a PR handoff document, or reporting blockers instead of redesigning the task.
 ---
 
 # YuuCoder
@@ -39,12 +39,23 @@ It must contain:
 - `## Objective`
 - `**Files claimed**`
 - `## Files Involved`
+- `## Test Boundary`
 - `## Implementation Steps`
 - `## Acceptance Criteria`
 
 Missing acceptance criteria -> record blocker.
+Missing test boundary -> record blocker.
 Missing `Files claimed` -> record blocker.
 Instruction requires files outside `Files claimed` -> record blocker.
+
+The test boundary must define:
+
+- Public entrypoint/API to test.
+- User-visible or externally observable outcome.
+- Required red test shape and exact command.
+- Forbidden test styles.
+
+Untestable boundary -> record blocker. If the declared boundary cannot be tested without touching internals or expanding scope beyond `Files claimed`, report the blocker back to YuuDev/human instead of redesigning it.
 
 `**Branch**` and `**Worktree**` are useful metadata, but YuuCoder does not create, switch, pull, rebase, push, merge, or otherwise manage branches or worktrees. If `**Worktree**` is declared, use it as the assigned coding checkout. Changing command cwd to that existing path is expected; it is not worktree lifecycle management.
 
@@ -114,7 +125,8 @@ Before stopping for preflight blockers, finish every check that is read-only and
 2. Resolve the assigned worktree from declared `**Worktree**`, if present, or from the current git top-level otherwise.
 3. Check `git status --short` in the assigned worktree only.
 4. Compare the instruction's requested file changes with `Files claimed`.
-5. Check whether required environment policy text exists when verification needs setup.
+5. Check whether `## Test Boundary` is present, testable through the declared public boundary, and scoped to `Files claimed`.
+6. Check whether required environment policy text exists when verification needs setup.
 
 Then report all blockers in one response. Do not stop after the first missing field or first mismatch. Do not edit files, install dependencies, or run lifecycle git commands while blockers exist.
 
@@ -138,6 +150,17 @@ Understand pseudocode as intent: data flow, boundaries, and behavior. Exact name
 ## Implement
 
 Follow `## Implementation Steps` in order.
+
+If the instruction contains `## Test Boundary`, execute the test-first phase before implementation:
+
+1. Use the reusable YuuTest rules for the red-green test workflow.
+2. Write the required red test before changing implementation code.
+3. Run the exact command from `## Test Boundary` and record the red failure.
+4. Confirm the red failure proves missing behavior. It must not be a syntax error, bad fixture, missing dependency, environment failure, or unrelated failure.
+5. Only then implement the behavior.
+6. Run the same command again and prove green.
+
+Do not weaken, delete, skip, or rewrite the red test to make implementation pass. Existing bad tests may be removed or rewritten only when they are listed in `Files claimed` and the instruction says to do so.
 
 After each meaningful step:
 
@@ -305,11 +328,13 @@ Blockers:
 | --- | --- |
 | Intent clear, minor implementation detail unspecified | Use the most obvious local convention |
 | Missing acceptance criteria | Record blocker; continue safe read-only preflight |
+| Missing test boundary | Record blocker; continue safe read-only preflight |
 | Missing `Files claimed` | Record blocker; continue safe read-only preflight |
 | Declared worktree path is missing or is not a git worktree | Record blocker; continue safe read-only preflight |
 | Assigned worktree is dirty at start | Record blocker; continue safe read-only preflight |
 | Assigned worktree/branch is missing or mismatched | Record blocker; continue safe read-only preflight |
 | File outside `Files claimed` is required | Record blocker; continue safe read-only preflight |
+| Declared test boundary cannot be tested without internals or expanded scope | Record blocker; continue safe read-only preflight |
 | Existing architecture contradicts instruction | Record blocker; inspect safely for related blockers, then report |
 | Verification fails | Fix current step; do not proceed |
 | Verification impossible | Record all unavailable verification criteria and report together |
@@ -320,12 +345,13 @@ Blockers:
 ## Absolute Constraints
 
 1. No acceptance criteria -> do not start implementation; continue safe read-only preflight and report all blockers.
-2. No `Files claimed` -> do not start implementation; continue safe read-only preflight and report all blockers.
-3. Work only in the instruction-declared worktree, or the current git top-level when no worktree is declared.
-4. Never create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
-5. Work only inside the assigned worktree.
-6. Never touch files outside `Files claimed`.
-7. Append to the PR document; never overwrite existing PR content.
-8. Run real verification commands.
-9. Do not redesign the task.
-10. Report blockers precisely and all at once when safe read-only checks can discover more than one.
+2. No test boundary -> do not start implementation; continue safe read-only preflight and report all blockers.
+3. No `Files claimed` -> do not start implementation; continue safe read-only preflight and report all blockers.
+4. Work only in the instruction-declared worktree, or the current git top-level when no worktree is declared.
+5. Never create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
+6. Work only inside the assigned worktree.
+7. Never touch files outside `Files claimed`.
+8. Append to the PR document; never overwrite existing PR content.
+9. Run real verification commands.
+10. Do not redesign the task.
+11. Report blockers precisely and all at once when safe read-only checks can discover more than one.
