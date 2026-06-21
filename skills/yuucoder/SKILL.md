@@ -1,6 +1,6 @@
 ---
 name: yuucoder
-description: Phase 2 implementation workflow for coding agents. Use when executing a prepared coding instruction in an already-assigned clean git worktree, including instructions with a Test Boundary that require red-green execution; committing changes, running real verification commands, self-reviewing, appending to a PR handoff document, or reporting blockers instead of redesigning the task.
+description: DO NOT READ THIS UNLESS USER INVOKED EXPLICITLY. 
 ---
 
 # YuuCoder

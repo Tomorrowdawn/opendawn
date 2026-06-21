@@ -1,6 +1,6 @@
 ---
 name: yuutest
-description: Test-first boundary workflow for coding agents. Use when defining, writing, executing, or reviewing red-green tests, test boundaries, regression tests, or bad tests; especially when YuuCoder receives a coding instruction with a Test Boundary and must prove red before implementation and green after implementation.
+description: DO NOT READ THIS UNLESS USER INVOKED EXPLICITLY. 
 ---
 
 # YuuTest
