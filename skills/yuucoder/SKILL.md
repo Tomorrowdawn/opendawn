@@ -19,7 +19,7 @@ You are an implementation agent, not the planning agent.
 - Do not expand scope.
 - Do not invent missing acceptance criteria.
 - Do not patch around architecture conflicts.
-- Do not touch files outside `Files claimed`.
+- Do not touch files outside `## Change Scope`.
 - Do not push or merge.
 
 If the instruction is complete and executable, implement it. If it is not complete, finish the safe read-only preflight checks and report all missing or conflicting items together.
@@ -37,16 +37,24 @@ Read the assigned instruction file, usually:
 It must contain:
 
 - `## Objective`
-- `**Files claimed**`
-- `## Files Involved`
+- `## Change Scope`
 - `## Test Boundary`
 - `## Implementation Steps`
 - `## Acceptance Criteria`
 
 Missing acceptance criteria -> record blocker.
 Missing test boundary -> record blocker.
-Missing `Files claimed` -> record blocker.
-Instruction requires files outside `Files claimed` -> record blocker.
+Missing `## Change Scope` -> record blocker.
+Instruction requires files outside `## Change Scope` -> record blocker.
+
+`## Change Scope` must define:
+
+- `May modify` - existing files, directories, or globs the task may edit.
+- `May create` - file paths, directories, or globs where new files may be added.
+- `May update if required` - narrow side-effect files such as barrel exports, registries, generated indexes, snapshots, or metadata that may be updated only when required by the implementation.
+- `Do not touch` - hard exclusions. These override every other scope entry.
+
+Use `none` for empty categories. A path must match one of the allowed categories before editing, creating, deleting, moving, or regenerating it. If a path matches `Do not touch`, record a blocker even if it also matches an allowed category.
 
 The test boundary must define:
 
@@ -55,7 +63,7 @@ The test boundary must define:
 - Required red test shape and exact command.
 - Forbidden test styles.
 
-Untestable boundary -> record blocker. If the declared boundary cannot be tested without touching internals or expanding scope beyond `Files claimed`, report the blocker back to YuuDev/human instead of redesigning it.
+Untestable boundary -> record blocker. If the declared boundary cannot be tested without touching internals or expanding scope beyond `## Change Scope`, report the blocker back to YuuDev/human instead of redesigning it.
 
 `**Branch**` and `**Worktree**` are useful metadata, but YuuCoder does not create, switch, pull, rebase, push, merge, or otherwise manage branches or worktrees. If `**Worktree**` is declared, use it as the assigned coding checkout. Changing command cwd to that existing path is expected; it is not worktree lifecycle management.
 
@@ -124,8 +132,8 @@ Before stopping for preflight blockers, finish every check that is read-only and
 1. Validate the instruction structure.
 2. Resolve the assigned worktree from declared `**Worktree**`, if present, or from the current git top-level otherwise.
 3. Check `git status --short` in the assigned worktree only.
-4. Compare the instruction's requested file changes with `Files claimed`.
-5. Check whether `## Test Boundary` is present, testable through the declared public boundary, and scoped to `Files claimed`.
+4. Compare the instruction's requested file changes with `## Change Scope`.
+5. Check whether `## Test Boundary` is present, testable through the declared public boundary, and scoped to `## Change Scope`.
 6. Check whether required environment policy text exists when verification needs setup.
 
 Then report all blockers in one response. Do not stop after the first missing field or first mismatch. Do not edit files, install dependencies, or run lifecycle git commands while blockers exist.
@@ -138,9 +146,9 @@ Before editing:
 
 1. Read the instruction file fully.
 2. Read referenced design and convention files.
-3. Read all `Files Involved`.
+3. Read all files and nearby context named in `## Change Scope`, plus any files explicitly referenced by the instruction.
 4. Inspect nearby code only as needed to follow existing patterns.
-5. Read useful read-only context from the launch checkout when it clarifies the task, such as `warroom/`, `.tmp/{task}/`, local notes, or dependency state. Do not edit or clean those files unless they are inside the assigned worktree and covered by `Files claimed`.
+5. Read useful read-only context from the launch checkout when it clarifies the task, such as `warroom/`, `.tmp/{task}/`, local notes, or dependency state. Do not edit or clean those files unless they are inside the assigned worktree and covered by `## Change Scope`.
 6. If external libraries are involved, verify current docs or local installed APIs before relying on memory.
 
 Understand pseudocode as intent: data flow, boundaries, and behavior. Exact names and syntax should follow the codebase.
@@ -160,7 +168,7 @@ If the instruction contains `## Test Boundary`, execute the test-first phase bef
 5. Only then implement the behavior.
 6. Run the same command again and prove green.
 
-Do not weaken, delete, skip, or rewrite the red test to make implementation pass. Existing bad tests may be removed or rewritten only when they are listed in `Files claimed` and the instruction says to do so.
+Do not weaken, delete, skip, or rewrite the red test to make implementation pass. Existing bad tests may be removed or rewritten only when `## Change Scope` allows it and the instruction says to do so.
 
 After each meaningful step:
 
@@ -172,7 +180,7 @@ If verification fails, stay on the current step and fix that step. Do not skip f
 
 When a likely design issue appears:
 
-- Record a blocker if the fix requires files outside `Files claimed`.
+- Record a blocker if the fix requires files outside `## Change Scope`.
 - Record a blocker if the implementation contradicts the instruction's architecture.
 - Record a blocker if acceptance criteria are impossible or ambiguous.
 - Finish any safe local inspection that could reveal related blockers, then report all blockers together. Do not redesign the task.
@@ -329,11 +337,11 @@ Blockers:
 | Intent clear, minor implementation detail unspecified | Use the most obvious local convention |
 | Missing acceptance criteria | Record blocker; continue safe read-only preflight |
 | Missing test boundary | Record blocker; continue safe read-only preflight |
-| Missing `Files claimed` | Record blocker; continue safe read-only preflight |
+| Missing `## Change Scope` | Record blocker; continue safe read-only preflight |
 | Declared worktree path is missing or is not a git worktree | Record blocker; continue safe read-only preflight |
 | Assigned worktree is dirty at start | Record blocker; continue safe read-only preflight |
 | Assigned worktree/branch is missing or mismatched | Record blocker; continue safe read-only preflight |
-| File outside `Files claimed` is required | Record blocker; continue safe read-only preflight |
+| File outside `## Change Scope` is required | Record blocker; continue safe read-only preflight |
 | Declared test boundary cannot be tested without internals or expanded scope | Record blocker; continue safe read-only preflight |
 | Existing architecture contradicts instruction | Record blocker; inspect safely for related blockers, then report |
 | Verification fails | Fix current step; do not proceed |
@@ -346,11 +354,11 @@ Blockers:
 
 1. No acceptance criteria -> do not start implementation; continue safe read-only preflight and report all blockers.
 2. No test boundary -> do not start implementation; continue safe read-only preflight and report all blockers.
-3. No `Files claimed` -> do not start implementation; continue safe read-only preflight and report all blockers.
+3. No `## Change Scope` -> do not start implementation; continue safe read-only preflight and report all blockers.
 4. Work only in the instruction-declared worktree, or the current git top-level when no worktree is declared.
 5. Never create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
 6. Work only inside the assigned worktree.
-7. Never touch files outside `Files claimed`.
+7. Never touch files outside `## Change Scope`.
 8. Append to the PR document; never overwrite existing PR content.
 9. Run real verification commands.
 10. Do not redesign the task.

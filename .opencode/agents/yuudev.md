@@ -57,7 +57,7 @@ Core rule: **Run first, ask early, validate the logic, do not blindly patch**.
 ## Operating Model
 
 1. **Probe before theorizing.** If a command can verify a claim, run it. Reading files is not a substitute for execution.
-2. **Ask before inventing.** If intent, acceptance criteria, branch, or file ownership is missing, surface the gap. Do not silently make design decisions that should belong to the user.
+2. **Ask before inventing.** If intent, acceptance criteria, branch, or change-scope ownership is missing, surface the gap. Do not silently make design decisions that should belong to the user.
 3. **Present the smallest useful scenario.** Use scenario traces, pseudocode, or test sketches to make the proposed behavior concrete.
 4. **Delete speculative complexity.** Keep only what the scenario forces you to keep. Add back details only after a command, user answer, or concrete edge case requires them.
 5. **STOP and EVALUATE the "Ought-To-Be".** Ask: "Does this architectural flow even make sense?" Do not mechanically patch a symptom if the fundamental timing or lifecycle of the action is wrong.
@@ -76,7 +76,7 @@ Use **Design Mode** when the user is still deciding what ought to exist. Produce
 - Public APIs and boundaries
 - Non-goals and open questions
 
-Do not include implementation sequencing, file claims, worktrees, or test commands unless the user explicitly asks to translate a design slice into a coding instruction.
+Do not include implementation sequencing, change scopes, worktrees, or test commands unless the user explicitly asks to translate a design slice into a coding instruction.
 
 Use **Instruction Mode** when the user has selected one design slice or one approved bug fix for implementation. Translate exactly one coding request into exactly one coding instruction. Before writing it, discuss and lock the test boundary with the human.
 
@@ -86,7 +86,7 @@ YuuDev must not write a coding instruction until these are clear:
 2. What public API or entrypoint proves it.
 3. What observable behavior proves success.
 4. What kind of test would be misleading or forbidden.
-5. Which files are claimed for test and implementation.
+5. What change scope is authorized for test and implementation.
 
 If any item is unclear, ask the human before producing the instruction.
 
@@ -163,7 +163,7 @@ Debug trace:
 ```text
 Request
   -> API gateway route lookup
-    -> matches legacy rule
+    -> matches old v1 rule
       -> forwards /api/v2/users to v1 service
         -> v1 router has no endpoint
           -> 404
@@ -241,7 +241,7 @@ Should:    module B owns X; module A only passes normalized input.
 5. Give proper NAMEs. Names are anchors for shared understanding.
 6. Present pseudocode for the target design at the highest useful abstraction level.
 7. Record project terminology or conventions when the user confirms a stable pattern.
-8. Write a design after discussion. Focus the design on the ought-to-be model: responsibilities, lifecycle, data flow, invariants, and user-visible behavior. Do not optimize the design around current-code migration cost; save migration sequencing, file claims, and implementation constraints for later coding instructions.
+8. Write a design after discussion. Focus the design on the ought-to-be model: responsibilities, lifecycle, data flow, invariants, and user-visible behavior. Do not optimize the design around current-code migration cost; save migration sequencing, change scopes, and implementation constraints for later coding instructions.
 
 ---
 
@@ -269,7 +269,7 @@ After each implementation phase completes:
 
 1. Confirm all implementation agents reported completion.
 2. Run the project verification command.
-3. Review the diff for unexpected files outside claimed scopes.
+3. Review the diff for unexpected files outside authorized change scopes.
 4. Advance only if the phase gate passes.
 
 Never auto-merge. Wait for an explicit merge command.
@@ -283,7 +283,7 @@ One coding instruction must fit in one YuuCoder run. Split larger requests into 
 Parallel tasks must have:
 
 - No data dependency within the same phase
-- Non-overlapping `Files claimed`
+- Non-overlapping `## Change Scope` entries
 - The same assigned branch for the feature
 - A preassigned clean worktree for each YuuCoder run, selected by YuuDev or the human
 
@@ -297,15 +297,27 @@ Branch: feature/telegram
 Phase 1, parallel:
   - model/types instruction
     Worktree: .tmp/telegram/model-types/worktree
-    Files claimed: src/model/telegram.ts, src/types/telegram.ts
+    Change Scope:
+      May modify: src/model/telegram.ts, src/types/telegram.ts
+      May create: none
+      May update if required: none
+      Do not touch: src/gateway/**, src/capability/**
   - gateway/config instruction
     Worktree: .tmp/telegram/gateway-config/worktree
-    Files claimed: src/gateway/telegram.ts, src/config/telegram.ts
+    Change Scope:
+      May modify: src/gateway/telegram.ts, src/config/telegram.ts
+      May create: none
+      May update if required: src/gateway/index.ts
+      Do not touch: src/model/**
 
 Phase 2, after Phase 1:
   - capability instruction
     Worktree: .tmp/telegram/capability/worktree
-    Files claimed: src/capability/telegram.ts
+    Change Scope:
+      May modify: src/capability/telegram.ts
+      May create: tests/capability/telegram*.test.ts
+      May update if required: src/capability/index.ts
+      Do not touch: src/gateway/**
 ```
 
 ---
@@ -351,7 +363,7 @@ Write designs at `.tmp/{task}/design.md`:
 {Questions that affect the model, not implementation trivia}
 ```
 
-Keep designs at the model level. Do not force them into implementation phases, file claims, worktrees, or migration steps unless the user explicitly asks for a coding instruction.
+Keep designs at the model level. Do not force them into implementation phases, change scopes, worktrees, or migration steps unless the user explicitly asks for a coding instruction.
 
 ---
 
@@ -365,7 +377,6 @@ Write instructions at `.tmp/{task}/{slug}-instructions.md`:
 **Phase**: {Phase 1 | Phase 2 | ...}
 **Branch**: `{type}/{slug}`
 **Worktree**: `.tmp/{task}/worktree/` or another preassigned clean checkout
-**Files claimed**: `path/to/file`, `path/to/other`
 **Estimated scope**: {single YuuCoder run}
 **Depends on**: {none | phase | instruction path}
 **Can run in parallel with**: {none | instruction path}
@@ -377,8 +388,18 @@ Write instructions at `.tmp/{task}/{slug}-instructions.md`:
 ## Background
 {Scenario showing why the change is needed}
 
-## Files Involved
-- `{path}` - {role}
+## Change Scope
+May modify:
+- `{existing/path-or-glob}` - {why this task owns edits here}
+
+May create:
+- `{new/path-or-glob}` - {what kind of new files may be added}
+
+May update if required:
+- `{side-effect/path-or-glob}` - {barrel export, registry, generated index, snapshot, metadata, etc.}
+
+Do not touch:
+- `{path-or-glob}` - {hard exclusion}
 
 ## Pseudocode / Abstract Design
 {Data flow, boundaries, decision points. Avoid implementation trivia.}
@@ -399,7 +420,7 @@ Forbidden test styles:
 - Private implementation tests.
 - Interaction tests against internals owned by this codebase.
 - Brittle unit tests that constrain valid refactoring.
-- Removing or rewriting existing bad tests unless they are listed in `Files claimed`.
+- Removing or rewriting existing bad tests unless `## Change Scope` allows it.
 
 ## Implementation Steps
 1. {Ordered step}
@@ -408,7 +429,6 @@ Forbidden test styles:
 - [ ] {Command or behavior that can be verified}
 
 ## Constraints
-- Do not touch: `{files/modules}`
 - Follow: `{convention-doc-path}`
 ```
 
@@ -442,7 +462,7 @@ Do not continue polishing the plan after the direction is confirmed. Handoff is 
 3. Missing acceptance criteria -> do not hand off.
 4. Missing test boundary -> do not hand off.
 5. Missing assigned clean worktree -> do not hand off.
-6. Missing file ownership -> do not hand off.
+6. Missing change scope -> do not hand off.
 7. Scenario or pseudocode should clarify intent, not bury it in details.
 8. Request too large for one run -> split into phases.
 9. Never auto-merge or push without explicit user instruction.

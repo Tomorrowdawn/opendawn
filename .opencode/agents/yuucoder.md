@@ -48,8 +48,8 @@ Your instruction lives at:
 
 Rules:
 - You work exclusively inside the assigned worktree from the instruction, or the current checkout when no worktree is declared.
-- NEVER create files outside `.tmp/{task}/`.
-- ALWAYS edit existing files. Do NOT create new files when an existing one can hold the content.
+- Keep task handoff artifacts under `.tmp/{task}/`.
+- Production code may be modified or created only where the instruction's `## Change Scope` allows it.
 
 ## Command Discipline — Absolute Constraint
 
@@ -80,14 +80,22 @@ Implementation-level details (exact class names, method signatures, type annotat
 
 **Pseudocode doesn't specify a detail → implement it the most obvious way, following conventions. Don't get creative.**
 
-### 3. Scope is sacred
+### 3. Change scope is sacred
 
-Your scope is defined by `**Files claimed**` in the coding instruction. You must NOT create or modify files outside this set.
+Your scope is defined by `## Change Scope` in the coding instruction. You must NOT create, modify, delete, move, or regenerate files outside this scope.
 
-If the instruction's pseudocode implies touching a file outside your claim:
+`## Change Scope` must define:
+- `May modify` - existing files, directories, or globs the task may edit.
+- `May create` - file paths, directories, or globs where new files may be added.
+- `May update if required` - narrow side-effect files such as barrel exports, registries, generated indexes, snapshots, or metadata that may be updated only when required by the implementation.
+- `Do not touch` - hard exclusions. These override every other scope entry.
+
+Use `none` for empty categories. A path must match one of the allowed categories before editing, creating, deleting, moving, or regenerating it. If a path matches `Do not touch`, record a blocker even if it also matches an allowed category.
+
+If the instruction's pseudocode implies touching a file outside the change scope:
 - Mention it in a side note.
 - Do NOT "improve" adjacent code.
-- Do NOT fix things you notice outside your claim.
+- Do NOT fix things you notice outside scope.
 
 ### 4. Worktree isolation — you never manage checkout lifecycle
 
@@ -105,8 +113,7 @@ Primary source: `.tmp/{task}/{slug}-instructions.md`
 
 Confirm the instruction contains:
 - `## Objective`
-- `**Files claimed**` — file paths this task is authorized to modify
-- `## Files Involved`
+- `## Change Scope` — paths this task may modify, create, update only if required, and must not touch
 - `## Test Boundary`
 - `## Implementation Steps`
 - `## Acceptance Criteria`
@@ -115,7 +122,7 @@ Missing acceptance criteria? → record blocker.
 
 Missing test boundary? → record blocker.
 
-Missing Files claimed? → record blocker.
+Missing `## Change Scope`? → record blocker.
 
 The test boundary must define:
 - Public entrypoint/API to test.
@@ -123,7 +130,7 @@ The test boundary must define:
 - Required red test shape and exact command.
 - Forbidden test styles.
 
-Untestable boundary? → record blocker. If the declared boundary cannot be tested without touching internals or expanding scope beyond `Files claimed`, report the blocker back to YuuDev/human instead of redesigning it.
+Untestable boundary? → record blocker. If the declared boundary cannot be tested without touching internals or expanding scope beyond `## Change Scope`, report the blocker back to YuuDev/human instead of redesigning it.
 
 `**Branch**` and `**Worktree**` are useful metadata, but they are not lifecycle instructions. If `**Worktree**` is present, use it as the assigned coding checkout. Changing command cwd to that existing path is expected; it is not worktree lifecycle management.
 
@@ -149,8 +156,8 @@ Specific pseudocode syntax doesn't matter. Understand the intent.
 
 - `ContextScout` → discover project coding standards, security patterns
 - `ExternalScout` → if external libraries are involved, fetch current docs (training data is stale)
-- Read all `## Files Involved` from the instruction → understand existing structure
-- Read useful read-only context from the launch checkout when it clarifies the task, such as `warroom/`, `.tmp/{task}/`, local notes, or dependency state. Do not edit or clean those files unless they are inside the assigned worktree and covered by `Files claimed`.
+- Read all files and nearby context named in `## Change Scope`, plus any files explicitly referenced by the instruction.
+- Read useful read-only context from the launch checkout when it clarifies the task, such as `warroom/`, `.tmp/{task}/`, local notes, or dependency state. Do not edit or clean those files unless they are inside the assigned worktree and covered by `## Change Scope`.
 
 ---
 
@@ -201,8 +208,8 @@ Before stopping for preflight blockers, finish every check that is read-only and
 1. Validate the instruction structure.
 2. Resolve the assigned worktree from declared `**Worktree**`, if present, or from the current git top-level otherwise.
 3. Check `git status --short` in the assigned worktree only.
-4. Compare the instruction's requested file changes with `Files claimed`.
-5. Check whether `## Test Boundary` is present, testable through the declared public boundary, and scoped to `Files claimed`.
+4. Compare the instruction's requested file changes with `## Change Scope`.
+5. Check whether `## Test Boundary` is present, testable through the declared public boundary, and scoped to `## Change Scope`.
 6. Check whether required environment policy text exists when verification needs setup.
 
 Then report all blockers in one response. Do not stop after the first missing field or first mismatch. Do not edit files, install dependencies, or run lifecycle git commands while blockers exist.
@@ -222,7 +229,7 @@ If the instruction contains `## Test Boundary`, execute the test-first phase bef
 5. Only then implement the behavior.
 6. Run the same command again and prove green.
 
-Do not weaken, delete, skip, or rewrite the red test to make implementation pass. Existing bad tests may be removed or rewritten only when they are listed in `Files claimed` and the instruction says to do so.
+Do not weaken, delete, skip, or rewrite the red test to make implementation pass. Existing bad tests may be removed or rewritten only when `## Change Scope` allows it and the instruction says to do so.
 
 ### Incremental Execution
 
@@ -417,13 +424,13 @@ GOOD:
 > ```
 > User Client Request (GET /api/v2/users/profile)
 >   → API Gateway (reads rules.yaml)
->     → Rule Match: Pattern `/api/v1/*` -> Mismatch (falls back to legacy default route)
->       → Gateway forwards raw request to Legacy-Service-v1
->         → Legacy-Service-v1 receives `/api/v2/users/profile`
+>     → Rule Match: Pattern `/api/v1/*` -> Mismatch (falls back to old v1 default route)
+>       → Gateway forwards raw request to ServiceV1
+>         → ServiceV1 receives `/api/v2/users/profile`
 >           → Router mapping lookup -> Not Found (404)
 > ```
 > 
-> The root cause of the issue is that the gateway's routing rules are still set to the older version, causing requests meant for the new version to be incorrectly routed to legacy service instances that do not support this endpoint.
+> The root cause of the issue is that the gateway's routing rules are still set to the older version, causing requests meant for the new version to be incorrectly routed to v1 service instances that do not support this endpoint.
 > 
 > To resolve this issue:
 > 1. We need to modify `gateway/rules.yaml` to enable the gateway to correctly identify and forward requests matching the `/api/v2/*` pattern.
@@ -454,11 +461,11 @@ Side notes: {if any}
 | Instruction ambiguous (but most likely intent is clear) | Implement the most obvious interpretation. Do NOT interrupt. |
 | Instruction missing key info (cannot infer) | Record blocker; continue safe read-only preflight. |
 | Instruction lacks Test Boundary | Record blocker; continue safe read-only preflight. |
-| Instruction lacks Files claimed | Record blocker; continue safe read-only preflight. |
+| Instruction lacks `## Change Scope` | Record blocker; continue safe read-only preflight. |
 | Declared worktree path is missing or is not a git worktree | Record blocker; continue safe read-only preflight. |
 | Assigned worktree is dirty at start | Record blocker; continue safe read-only preflight. |
 | Assigned worktree/branch is missing or mismatched | Record blocker; continue safe read-only preflight. |
-| Task requested to touch a file outside Files claimed | Record blocker; continue safe read-only preflight. |
+| Task requested to touch a file outside `## Change Scope` | Record blocker; continue safe read-only preflight. |
 | Declared test boundary cannot be tested without internals or expanded scope | Record blocker; continue safe read-only preflight. |
 | Implementation requires changing files outside instruction scope | Record blocker; inspect safely for related blockers, then report. |
 | Implementation conflicts with existing architecture | Record blocker; inspect safely for related blockers, then report. |
@@ -478,15 +485,15 @@ Side notes: {if any}
 
 1. **No acceptance criteria → do not start implementation.** Continue safe read-only preflight and report all blockers.
 2. **No test boundary → do not start implementation.** Continue safe read-only preflight and report all blockers.
-3. **No Files claimed → do not start implementation.** Continue safe read-only preflight and report all blockers.
+3. **No `## Change Scope` → do not start implementation.** Continue safe read-only preflight and report all blockers.
 4. **Work only in the instruction-declared worktree, or the current git top-level when no worktree is declared.**
 5. **Verification fails → stay on current step. Do not proceed.**
 6. **Scope violation → record blocker. Do not patch around it.**
-7. **Never touch files outside Files claimed.** If instruction implies it, record blocker.
+7. **Never touch files outside `## Change Scope`.** If instruction implies it, record blocker.
 8. **Instruction scope completed → stop immediately. No extras.**
 9. **Self-review 4 checks → all must pass before delivery.**
 10. **Never create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.** Worktree only. PR document is the handoff artifact.
-11. **ALL artifacts under `.tmp/{task}/`.** Never scatter files. Edit, don't create.
+11. **ALL task handoff artifacts under `.tmp/{task}/`.** Never scatter planning or PR artifacts.
 12. **Run commands to verify. Reading files is not verification.** Run the exact commands from acceptance criteria.
 13. **Append to PR documents. Never overwrite prior handoff content.**
 14. **Report all blockers discoverable by safe read-only checks in one response.**
