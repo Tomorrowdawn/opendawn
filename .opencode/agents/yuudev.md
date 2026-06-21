@@ -366,9 +366,9 @@ Content: term definitions, common patterns, pseudocode style conventions.
 
 ---
 
-## SOP: Branch Lifecycle
+## SOP: Branch and Worktree Lifecycle
 
-yuudev owns the feature branch from creation to merge. YuuCoder only works inside it — it never creates or merges branches.
+yuudev and the human own branch creation, local worktree allocation, parallel-conflict disambiguation, and merge readiness. YuuCoder only consumes the already-assigned current worktree; it never creates, switches, pulls, rebases, merges, pushes, or otherwise manages branches/worktrees.
 
 ### Step 1 — Create Feature Branch
 
@@ -379,7 +379,7 @@ git checkout -b {type}/{slug} main
 # or the base branch appropriate for this project (main, dev, etc.)
 ```
 
-All coding instructions for this feature reference this branch. All Phases share it. Multiple parallel yuucoders create separate worktrees of this same branch.
+All coding instructions for this feature reference this branch. All Phases share it. Before invoking YuuCoder, yuudev or the human must allocate a concrete clean worktree for that run. For long-running work, keep assigning the existing clean worktree so implementation continues in place.
 
 ### Step 2 — Phase Gate
 
@@ -436,14 +436,18 @@ Branch: feature/telegram
 
 Phase 1 (parallel — no deps, files don't overlap):
   - .tmp/telegram/telegram-integration-model-instructions.md
+    Worktree: .tmp/telegram/model/worktree
     Files claimed: src/model/telegram.ts, src/types/telegram.ts
   - .tmp/telegram/telegram-integration-gateway-instructions.md
+    Worktree: .tmp/telegram/gateway/worktree
     Files claimed: src/gateway/telegram.ts, src/config/telegram.ts
 
 Phase 2 (depends on Phase 1):
   - .tmp/telegram/telegram-integration-capability-instructions.md
+    Worktree: .tmp/telegram/capability/worktree
     Files claimed: src/capability/telegram.ts
   - .tmp/telegram/telegram-admin-panel-instructions.md
+    Worktree: .tmp/telegram/admin-panel/worktree
     Files claimed: src/admin/telegram.tsx, src/admin/telegram.css
 ```
 
@@ -451,6 +455,7 @@ Each instruction file must declare its dependencies and file claim:
 ```
 **Phase**: Phase 2
 **Branch**: `feature/telegram`
+**Worktree**: `.tmp/telegram/capability/worktree`
 **Files claimed**: `src/capability/telegram.ts`
 **Depends on**: Phase 1
 **Can run in parallel with**: Phase 2 — .tmp/telegram/telegram-admin-panel-instructions.md (no file overlap)
@@ -458,7 +463,7 @@ Each instruction file must declare its dependencies and file claim:
 
 ### Branch Assignment
 
-One feature = one branch. All Phases share the same branch. YuuCoder tasks within a Phase each create their own worktree of that branch.
+One feature = one branch. All Phases share the same branch. YuuDev or the human assigns the worktree for each YuuCoder run. Parallel YuuCoder runs need distinct preallocated clean worktrees unless the human explicitly serializes them on the same checkout.
 
 Branch naming conventions:
 - `feature/{slug}` — new capability or significant addition
@@ -487,6 +492,7 @@ Format: `.tmp/{task}/{slug}-instructions.md`
 
 **Phase**: {Phase 1 | Phase 2 | Phase 2-A | ...}
 **Branch**: `feature/{slug}`       ← feature-level — all Phases share this branch
+**Worktree**: `.tmp/{task}/worktree/` or another preassigned clean checkout
 **Files claimed**: `path/to/file.ts`, `path/to/other.ts`  ← file paths this task owns; must NOT overlap with parallel tasks in same Phase
 **Estimated scope**: {single YuuCoder run}
 **Depends on**: {none | Phase N | instruction file path}

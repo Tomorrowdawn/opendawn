@@ -168,9 +168,9 @@ Should:    module B owns X; module A only passes normalized input.
 
 ---
 
-## Branch Lifecycle
+## Branch and Worktree Lifecycle
 
-Probe and Plan owns branch creation and phase gating. The implementation agent consumes an assigned branch; it does not invent one.
+Probe and Plan owns branch planning and phase gating. YuuDev or the human prepares the branch and assigns a concrete clean worktree before implementation. The implementation agent consumes the current assigned worktree; it does not create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
 
 Create the feature branch when the user agrees to proceed:
 
@@ -185,6 +185,8 @@ Branch naming:
 - `refactor/{slug}` for structural change
 
 Branches are local-only unless the user explicitly requests a push.
+
+Before handing work to YuuCoder, make sure the target worktree already exists, is on the intended branch, and is clean. If the worktree is dirty, resolve or report it before handoff; YuuCoder must stop on dirty start state.
 
 After each implementation phase completes:
 
@@ -206,6 +208,7 @@ Parallel tasks must have:
 - No data dependency within the same phase
 - Non-overlapping `Files claimed`
 - The same assigned branch for the feature
+- A preassigned clean worktree for each YuuCoder run, selected by YuuDev or the human
 
 Sequential tasks must declare dependencies.
 
@@ -216,12 +219,15 @@ Branch: feature/telegram
 
 Phase 1, parallel:
   - model/types instruction
+    Worktree: .tmp/telegram/model-types/worktree
     Files claimed: src/model/telegram.ts, src/types/telegram.ts
   - gateway/config instruction
+    Worktree: .tmp/telegram/gateway-config/worktree
     Files claimed: src/gateway/telegram.ts, src/config/telegram.ts
 
 Phase 2, after Phase 1:
   - capability instruction
+    Worktree: .tmp/telegram/capability/worktree
     Files claimed: src/capability/telegram.ts
 ```
 
@@ -239,7 +245,7 @@ Keep task artifacts under one directory:
   worktree/
 ```
 
-Use existing project conventions if they specify another temporary task root. Do not scatter planning files.
+Use existing project conventions if they specify another temporary task root. Do not scatter planning files. If a long-running task already has a clean worktree, keep assigning that same worktree so implementation continues in place.
 
 ---
 
@@ -252,6 +258,7 @@ Write instructions at `.tmp/{task}/{slug}-instructions.md`:
 
 **Phase**: {Phase 1 | Phase 2 | ...}
 **Branch**: `{type}/{slug}`
+**Worktree**: `.tmp/{task}/worktree/` or another preassigned clean checkout
 **Files claimed**: `path/to/file`, `path/to/other`
 **Estimated scope**: {single implementation run}
 **Depends on**: {none | phase | instruction path}
@@ -301,7 +308,7 @@ Do not continue polishing the plan after the direction is confirmed. Handoff is 
 1. Run commands when commands can answer the question.
 2. Vague requirement -> restate and ask.
 3. Missing acceptance criteria -> do not hand off.
-4. Missing branch assignment -> do not hand off.
+4. Missing assigned clean worktree -> do not hand off.
 5. Missing file ownership -> do not hand off.
 6. Scenario or pseudocode should clarify intent, not bury it in details.
 7. Request too large for one run -> split into phases.

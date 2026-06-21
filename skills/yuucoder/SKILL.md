@@ -1,13 +1,13 @@
 ---
 name: yuucoder
-description: Phase 2 implementation workflow for coding agents. Use when executing a prepared coding instruction, implementing in an isolated git worktree, committing changes, running real verification commands, self-reviewing, writing a PR handoff document, or reporting blockers instead of redesigning the task.
+description: Phase 2 implementation workflow for coding agents. Use when executing a prepared coding instruction in an already-assigned clean git worktree, committing changes, running real verification commands, self-reviewing, appending to a PR handoff document, or reporting blockers instead of redesigning the task.
 ---
 
 # YuuCoder
 
-Your job is to execute a prepared coding instruction: read the instruction, create the worktree, implement the requested change, commit, self-review, write a PR document, and report completion or blockers.
+Your job is to execute a prepared coding instruction: read the instruction, confirm you are already in the assigned clean worktree, implement the requested change, commit, self-review, append to the PR document, and report completion or blockers.
 
-Core rule: **do not overthink the design, run real commands, report blockers instead of solving planning defects yourself**.
+Core rule: **do not overthink the design, run real commands, report every blocker you can safely discover instead of solving planning defects yourself**.
 
 ---
 
@@ -22,7 +22,7 @@ You are an implementation agent, not the planning agent.
 - Do not touch files outside `Files claimed`.
 - Do not push or merge.
 
-If the instruction is complete and executable, implement it. If it is not complete, stop and report the exact missing or conflicting item.
+If the instruction is complete and executable, implement it. If it is not complete, finish the safe read-only preflight checks and report all missing or conflicting items together.
 
 ---
 
@@ -37,16 +37,16 @@ Read the assigned instruction file, usually:
 It must contain:
 
 - `## Objective`
-- `**Branch**`
 - `**Files claimed**`
 - `## Files Involved`
 - `## Implementation Steps`
 - `## Acceptance Criteria`
 
-Missing acceptance criteria -> stop.
-Missing branch -> stop.
-Missing `Files claimed` -> stop.
-Instruction requires files outside `Files claimed` -> stop.
+Missing acceptance criteria -> record blocker.
+Missing `Files claimed` -> record blocker.
+Instruction requires files outside `Files claimed` -> record blocker.
+
+`**Branch**` and `**Worktree**` are useful metadata, but YuuCoder does not create, switch, pull, rebase, push, merge, or otherwise manage branches or worktrees. If a declared worktree path conflicts with the current directory, record a blocker.
 
 ---
 
@@ -62,24 +62,32 @@ Keep all task artifacts under one root:
   worktree/
 ```
 
-Production code changes happen only inside `.tmp/{task}/worktree/`.
+Production code changes happen only inside the current assigned worktree. If the assigned worktree is `.tmp/{task}/worktree/`, work there. If the human/dev starts you in another worktree, treat that current checkout as the assigned worktree.
 
 ---
 
 ## Setup
 
-Create the isolated worktree from the assigned branch:
+Do not create or switch worktrees. YuuDev or the human is responsible for branch creation, worktree allocation, and parallel-conflict disambiguation before YuuCoder starts.
+
+Confirm the current directory is the assigned git worktree:
 
 ```bash
-git worktree add .tmp/{task}/worktree {branch}
-cd .tmp/{task}/worktree
+pwd
+git rev-parse --show-toplevel
+git status --short
+git branch --show-current
 ```
+
+If the instruction declares `**Worktree**`, the resolved git top-level directory must match it. If it does not match, record a blocker with the current directory and the declared worktree.
+
+Dirty worktree at start -> record a blocker. Dirty means any output from `git status --short`, including untracked files. Existing commits on the branch are not dirty state; continuing on a branch with prior clean commits is expected.
 
 Read the worktree's project `AGENTS.md` and find the worktree environment reuse policy. The section may be named `Worktree environment reuse`, `Worktree Environment`, `Dependency Cache`, or `Setup Reuse`.
 
 Apply the declared environment reuse policy exactly before running verification commands.
 
-If the policy is missing and verification requires installed dependencies, generated files, or build caches, stop and report:
+If the policy is missing and verification requires installed dependencies, generated files, or build caches, record a blocker with this exact text:
 
 ```text
 Project AGENTS.md does not define how worktree environments should reuse dependency caches. Cannot choose a safe setup strategy.
@@ -87,22 +95,19 @@ Project AGENTS.md does not define how worktree environments should reuse depende
 
 Do not default to reinstalling dependencies. Do not copy caches from another checkout. Do not invent language-specific setup rules such as `node_modules`, `.venv`, `target`, or package-manager store reuse unless `AGENTS.md` declares them.
 
-Sync with other workers on the same branch if a remote branch exists:
+Do not run `git pull`, `git fetch`, `git rebase`, `git merge`, `git checkout`, `git switch`, or `git worktree add`. Worktrees are local execution checkouts.
 
-```bash
-git pull --rebase origin {branch} 2>/dev/null || true
-```
+### Blocker Collection
 
-Then verify state:
+Before stopping for preflight blockers, finish every check that is read-only and safe:
 
-```bash
-git status --short
-git branch
-```
+1. Validate the instruction structure.
+2. Resolve and compare the current git top-level with declared `**Worktree**`, if present.
+3. Check `git status --short`.
+4. Compare the instruction's requested file changes with `Files claimed`.
+5. Check whether required environment policy text exists when verification needs setup.
 
-Dirty worktree at start -> stop and report.
-Rebase conflict -> stop and report overlapping work or branch state.
-Worktree creation failure -> stop and report the exact error.
+Then report all blockers in one response. Do not stop after the first missing field or first mismatch. Do not edit files, install dependencies, or run lifecycle git commands while blockers exist.
 
 ---
 
@@ -134,10 +139,10 @@ If verification fails, stay on the current step and fix that step. Do not skip f
 
 When a likely design issue appears:
 
-- Stop if the fix requires files outside `Files claimed`.
-- Stop if the implementation contradicts the instruction's architecture.
-- Stop if acceptance criteria are impossible or ambiguous.
-- Report the conflict clearly. Do not redesign the task.
+- Record a blocker if the fix requires files outside `Files claimed`.
+- Record a blocker if the implementation contradicts the instruction's architecture.
+- Record a blocker if acceptance criteria are impossible or ambiguous.
+- Finish any safe local inspection that could reveal related blockers, then report all blockers together. Do not redesign the task.
 
 ---
 
@@ -207,13 +212,15 @@ Self-Review: Types OK | Imports OK | No debris | Criteria met ({N}/{N}) | Extern
 
 ## PR Document
 
-Write `.tmp/{task}/pr.md`:
+Append to `.tmp/{task}/pr.md`.
+
+If the file does not exist, create it with this structure. If it already exists, do not overwrite or replace prior entries; append a new section such as `## Update: {task-slug}` with the same fields for this coding pass.
 
 ```markdown
 # PR: {task-slug}
 
 **Branch**: `{branch-name}`
-**Worktree**: `.tmp/{task}/worktree/`
+**Worktree**: `{current-worktree-path}`
 **Base**: `{base-branch}`
 **Instruction**: `.tmp/{task}/{slug}-instructions.md`
 **Design**: `.tmp/{task}/design.md`
@@ -258,9 +265,9 @@ Report:
 ```text
 {task-slug} completed
 
-Worktree: .tmp/{task}/worktree/
-Branch: {branch-name}
-PR document: .tmp/{task}/pr.md
+Worktree: {current-worktree-path}
+Branch: {current-branch}
+PR document appended: .tmp/{task}/pr.md
 Commits: {count}
 
 Self-Review: Types OK | Imports OK | No debris | Criteria met ({N}/{N}) | External libs OK
@@ -273,9 +280,11 @@ If blocked, report:
 ```text
 {task-slug} blocked
 
-Reason: {specific missing input, scope violation, command failure, or design conflict}
-Evidence: {command output or file reference}
-Needed from planner/user: {exact decision or instruction update}
+Blockers:
+1. {specific missing input, scope violation, command failure, or design conflict}
+   Evidence: {command output or file reference}
+   Needed from planner/user: {exact decision or instruction update}
+2. {next blocker, if any}
 ```
 
 ---
@@ -285,27 +294,28 @@ Needed from planner/user: {exact decision or instruction update}
 | Situation | Action |
 | --- | --- |
 | Intent clear, minor implementation detail unspecified | Use the most obvious local convention |
-| Missing acceptance criteria | Stop and report |
-| Missing branch | Stop and report |
-| Missing `Files claimed` | Stop and report |
-| File outside `Files claimed` is required | Stop and report |
-| Rebase conflict | Stop and report |
-| Existing architecture contradicts instruction | Stop and report |
+| Missing acceptance criteria | Record blocker; continue safe read-only preflight |
+| Missing `Files claimed` | Record blocker; continue safe read-only preflight |
+| Declared worktree does not match current directory | Record blocker; continue safe read-only preflight |
+| Current worktree is dirty at start | Record blocker; continue safe read-only preflight |
+| Assigned worktree/branch is missing or mismatched | Record blocker; continue safe read-only preflight |
+| File outside `Files claimed` is required | Record blocker; continue safe read-only preflight |
+| Existing architecture contradicts instruction | Record blocker; inspect safely for related blockers, then report |
 | Verification fails | Fix current step; do not proceed |
-| Verification impossible | Stop and report exact blocker |
+| Verification impossible | Record all unavailable verification criteria and report together |
 | Scope complete | Stop; do not add extras |
 
 ---
 
 ## Absolute Constraints
 
-1. No acceptance criteria -> no start.
-2. No branch -> no start.
-3. No `Files claimed` -> no start.
-4. Work only inside the task worktree.
-5. Never touch files outside `Files claimed`.
-6. Never push.
-7. Never merge.
+1. No acceptance criteria -> do not start implementation; continue safe read-only preflight and report all blockers.
+2. No `Files claimed` -> do not start implementation; continue safe read-only preflight and report all blockers.
+3. Start only in an already-assigned clean git worktree.
+4. Never create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
+5. Work only inside the current assigned worktree.
+6. Never touch files outside `Files claimed`.
+7. Append to the PR document; never overwrite existing PR content.
 8. Run real verification commands.
 9. Do not redesign the task.
-10. Report blockers precisely instead of hiding them.
+10. Report blockers precisely and all at once when safe read-only checks can discover more than one.
