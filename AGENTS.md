@@ -70,3 +70,4 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 - Do **not** add tests or CI unless explicitly requested — the repo is intentionally minimal.
 - Use `roadmap/` for git-tracked long-term plans; keep local high-frequency work state in `warroom/` when present and disposable execution state in `.tmp/`.
 - The `external-wiki/` directory contains curated reference docs about the OpenCode plugin API. Do not delete or reorganize it.
+- To locate OpenCode runtime logs or session data (SQLite at `~/.local/share/opencode/opencode.db`, text logs at `~/.local/share/opencode/log/`), see `external-wiki/opencode-logs.md` for paths and ready-to-use `sqlite3` queries.

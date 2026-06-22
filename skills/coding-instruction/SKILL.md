@@ -32,7 +32,9 @@ For everything else: direct mode (YuuDev implements, commits) is lighter and suf
   worktree/                      # Often the assigned git worktree
 ```
 
-All task artifacts stay under one root. Never scatter planning or PR files. If a long-running task already has a clean worktree, keep assigning that same worktree so implementation continues in place.
+All task artifacts stay under one root. Never scatter planning or PR files.
+
+**One worktree per branch, not per instruction.** Sequential phases on the same branch (A→B→C) reuse the same worktree: YuuCoder runs each instruction in place, commits, and the next instruction picks up the advanced tree. Only parallel slices that live on separate branches get their own preassigned clean worktree. Spawning a new worktree per sequential phase fragments review and wastes checkout/setup — never do it.
 
 ## Instruction Format
 
@@ -145,10 +147,10 @@ Use the `yuutest` skill for the red-green subworkflow details.
 
 YuuDev or the human prepares the branch and assigned clean worktree **before** YuuCoder starts. YuuCoder only consumes — it never creates, switches, pulls, rebases, merges, pushes, or otherwise manages branches/worktrees.
 
-Create branch in a task-local worktree only when the user agrees to proceed with a coding instruction:
+Create branch in a task-local worktree only when the user agrees to proceed with a coding instruction. One worktree per **branch** — sequential phases on the same branch reuse it; only parallel slices on separate branches each need their own:
 
 ```bash
-git worktree add .tmp/{slug}/worktree -b {type}/{slug} {base-branch}
+git worktree add .tmp/{task}/worktree -b {type}/{slug} {base-branch}
 ```
 
 Branch naming:
@@ -183,21 +185,24 @@ Do not globally prescribe reuse for `node_modules`, `.venv`, `target`, package-m
 
 One coding instruction must fit in one YuuCoder run. Split larger requests into phases.
 
+**Worktree assignment is per-branch, not per-instruction.** Sequential phases on the same branch reuse the same worktree — YuuCoder commits after each run and the next instruction picks up the advanced tree. Only parallel slices on separate branches each get their own worktree.
+
 Parallel tasks must have:
 - No data dependency within the same phase
 - Non-overlapping `## Change Scope` entries
-- The same assigned branch for the feature
-- A preassigned clean worktree for each YuuCoder run, selected by YuuDev or the human
+- A separate branch and preassigned clean worktree for each parallel slice
 
-Sequential tasks must declare dependencies.
+Sequential tasks must declare dependencies and share the worktree of their branch.
 
 Example:
 
 ```text
 Branch: feature/telegram
+Worktree (shared by Phase 1 + Phase 2): .tmp/telegram/worktree
 
-Phase 1, parallel:
+Phase 1, parallel (two slices, two branches — own worktrees):
   - model/types instruction
+    Branch: feature/telegram-model
     Worktree: .tmp/telegram/model-types/worktree
     Change Scope:
       May modify: src/model/telegram.ts, src/types/telegram.ts
@@ -205,6 +210,7 @@ Phase 1, parallel:
       May update if required: none
       Do not touch: src/gateway/**, src/capability/**
   - gateway/config instruction
+    Branch: feature/telegram-gateway
     Worktree: .tmp/telegram/gateway-config/worktree
     Change Scope:
       May modify: src/gateway/telegram.ts, src/config/telegram.ts
@@ -212,9 +218,10 @@ Phase 1, parallel:
       May update if required: src/gateway/index.ts
       Do not touch: src/model/**
 
-Phase 2, after Phase 1:
+Phase 2, after Phase 1 (same branch as Phase 2's lineage — reuses one worktree):
   - capability instruction
-    Worktree: .tmp/telegram/capability/worktree
+    Branch: feature/telegram         # same branch as the Phase 2 continuation
+    Worktree: .tmp/telegram/worktree # REUSED — YuuCoder runs in place, commits, stops
     Change Scope:
       May modify: src/capability/telegram.ts
       May create: tests/capability/telegram*.test.ts
