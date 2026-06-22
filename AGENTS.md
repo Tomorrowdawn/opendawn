@@ -23,14 +23,20 @@ roadmap/           → git-tracked long-term plans and desired final states
 external-wiki/     → reference docs for the OpenCode plugin system
 ```
 
-Two agents: `YuuDev` (primary, default direct mode + opt-in batch-launcher mode)
-and `YuuCoder` (subagent, large-task worktree executor). Their system prompts
-embed git discipline, scenario communication, and commit hygiene directly.
-YuuCoder also inlines the lazy reflection ladder; YuuDev does not — scenario
-output is its dominant pressure, and anti-verbosity reflexes must be opt-in
-(`probe-and-plan` / `coding-instruction`) to avoid suppressing scenarios.
+Three agents: `YuuDev` (primary, default direct mode + opt-in batch-launcher mode),
+`YuuCoder` (subagent, large-task worktree executor), and `YuuPM` (primary,
+requirements/roadmap maintainer). YuuDev and YuuCoder share code-level
+discipline; YuuPM owns the requirements lifecycle and never touches code.
+Their system prompts embed git discipline, scenario communication, and commit
+hygiene directly. YuuCoder also inlines the lazy reflection ladder; YuuDev does
+not — scenario output is its dominant pressure, and anti-verbosity reflexes
+must be opt-in (`probe-and-plan` / `coding-instruction`) to avoid suppressing
+scenarios. YuuPM inlines a documentation-flavored lazy ladder by default —
+documentation over-builds as easily as code, and the requirements stage is
+where pseudo-requirements and scope creep take root.
 Skills are opt-in for deep-dive (`probe-and-plan`) and large-task spec
-(`coding-instruction`).
+(`coding-instruction`). The `req-lifecycle` skill is shared by YuuPM (always)
+and YuuDev (before any REQ state transition).
 
 The `ponytail` skill (MIT, external) is installed by `install.sh` and
 referenced from YuuCoder's prompt; the ladder core is inlined there.
@@ -59,6 +65,7 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 |-------|---------|
 | `probe-and-plan` | Opt-in deep-dive — take-a-step-back, ought-to-be, design format. Loaded only when symptoms recur or architecture mismatch is suspected. |
 | `coding-instruction` | Spec for large-task workflow — instruction format, Change Scope, Test Boundary, blocker protocol, worktree lifecycle, task sizing. |
+| `req-lifecycle` | Requirement lifecycle for `roadmap/reqs/` — state machine (draft→approved→in-progress→implemented), `transition.py` (auto-committing status changes), `list.py` (filter by status). Shared by YuuPM (always) and YuuDev (before REQ state transitions and REFACTOR regression audits). |
 | `yuutest` | Red-green subworkflow used during the test-first phase of a coding instruction. |
 | `python-purist` | Opinionated Python coding standards |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |
