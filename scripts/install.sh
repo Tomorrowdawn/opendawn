@@ -55,8 +55,9 @@ SKILLS_SRC="$REPO_ROOT/skills"
 OPENDOWN_SRC="$REPO_ROOT/.opencode"
 
 # ponytail is an external MIT skill we depend on for lazy reflection.
-# Installed alongside opendawn skills so both agents can reference it at
-# skills/ponytail/SKILL.md. License: MIT. See README for attribution.
+# Installed alongside opendawn skills so YuuCoder can reference it at
+# skills/ponytail/SKILL.md (YuuCoder inlines the ladder core; YuuDev loads
+# it only on explicit user signal). License: MIT. See README for attribution.
 PONYTAIL_REPO="${PONYTAIL_REPO:-https://github.com/DietrichGebert/ponytail.git}"
 PONYTAIL_CACHE="${PONYTAIL_CACHE:-$HOME/.cache/opendawn-ponytail}"
 
@@ -409,7 +410,8 @@ echo "  - $STATS_SKIPPED skipped"
 echo "  × $STATS_PRUNED pruned (stale opendawn files removed)"
 echo ""
 echo "Includes ponytail (MIT, https://github.com/DietrichGebert/ponytail)"
-echo "installed at skills/ponytail/. Both referenced by agent prompts."
+echo "installed at skills/ponytail/. Referenced by YuuCoder (ladder inlined);"
+echo "YuuDev loads it only on explicit user signal."
 echo "──────────────────────────────────────────────────"
 if [ "$STATS_SKIPPED" -gt 0 ]; then
     echo "Re-run with -y to overwrite all skipped files."

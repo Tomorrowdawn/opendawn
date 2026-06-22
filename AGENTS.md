@@ -25,12 +25,16 @@ external-wiki/     → reference docs for the OpenCode plugin system
 
 Two agents: `YuuDev` (primary, default direct mode + opt-in batch-launcher mode)
 and `YuuCoder` (subagent, large-task worktree executor). Their system prompts
-embed git discipline, scenario communication, commit hygiene, and the lazy
-reflection ladder directly. Skills are opt-in for deep-dive (`probe-and-plan`)
-and large-task spec (`coding-instruction`).
+embed git discipline, scenario communication, and commit hygiene directly.
+YuuCoder also inlines the lazy reflection ladder; YuuDev does not — scenario
+output is its dominant pressure, and anti-verbosity reflexes must be opt-in
+(`probe-and-plan` / `coding-instruction`) to avoid suppressing scenarios.
+Skills are opt-in for deep-dive (`probe-and-plan`) and large-task spec
+(`coding-instruction`).
 
 The `ponytail` skill (MIT, external) is installed by `install.sh` and
-referenced from both agents' prompts; the ladder core is inlined too.
+referenced from YuuCoder's prompt; the ladder core is inlined there.
+YuuDev loads lazy reflection only on explicit user signal.
 
 ## Worktree environment reuse
 

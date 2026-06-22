@@ -88,7 +88,7 @@ Platform-independent skills distributed via the `npx skills` CLI and installed b
 | `yuutest` | Red-green test subworkflow used during the test-first phase of a coding instruction. Catches invalid red failures and bad-test anti-patterns. |
 | `python-purist` | Opinionated Python coding standards — type safety, composition over inheritance, coroutines over threads. Includes 31 case studies, cookbook recipes, and an automated anti-pattern scanner. |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos. |
-| `ponytail` *(dependency, MIT)* | Lazy reflection ladder. Forces the simplest, shortest, most minimal solution. Both agents' system prompts inline the ladder core and reference this skill for the full methodology with intensity levels and worked examples. Source: [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), MIT — installed automatically by `install.sh`. |
+| `ponytail` *(dependency, MIT)* | Lazy reflection ladder. Forces the simplest, shortest, most minimal solution. `YuuCoder`'s system prompt inlines the ladder core; `YuuDev` loads it only on explicit user signal, so its scenario-as-deliverable pressure stays dominant. Source: [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), MIT — installed automatically by `install.sh`. |
 
 ## Development
 
@@ -127,8 +127,9 @@ opendawn/
 This project includes the `ponytail` skill (MIT) from
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail).
 It is fetched automatically by `scripts/install.sh` and stored at
-`skills/ponytail/`. Both `YuuDev` and `YuuCoder` system prompts reference it;
-the lazy-reflection ladder inlined in those prompts is adapted from ponytail.
+`skills/ponytail/`. `YuuCoder`'s system prompt inlines the ladder core;
+`YuuDev` keeps lazy reflection opt-in (loaded on explicit user signal) so
+the lazy anti-verbosity reflex cannot suppress YuuDev's scenario traces.
 
 To install ponytail manually (without `install.sh`):
 

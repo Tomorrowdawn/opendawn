@@ -128,7 +128,7 @@ Current path: request → wrong owner does X → failure
 Target path:  request → correct owner does Y → expected result
 ```
 
-Shorter reasoning than the code → delete the reasoning. Ship code + at most three lines naming what was skipped and when. The PR doc summary, though, should *be* a scenario trace (user-asked-for).
+The PR doc summary should *be* a scenario trace (user-asked-for); do not delete it for being longer than the diff.
 
 ## Deliver
 
