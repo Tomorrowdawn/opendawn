@@ -10,3 +10,6 @@ pnpm-lock.yaml
 
 # python
 __pycache__/
+
+# issue time-tracking (local timesheet jsonl — NOT git history; avoid polluting log)
+roadmap/issues/.timetracking/
