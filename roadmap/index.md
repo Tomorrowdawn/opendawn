@@ -11,7 +11,7 @@ This directory is the project-level, git-tracked home for stable long-term plans
 
 Derivation flows **down** — the charter's phase goal spawns milestones; milestones (and ordinary product use) spawn issues.
 
-A sprint is built **up** from issues — never the reverse. Issues accumulate first in the backlog, triaged on two axes (priority = importance, milestone = urgency); the sprint then freezes a selection of already-triaged, already-estimated issues.
+A sprint is built **up** from issues — never the reverse. Issues accumulate first in the backlog, triaged on two axes: `priority` (P0–P3, importance) and `milestone` (M-N / all / none, urgency — concretely, whether the Issue is bound to the currently-active WIP milestone). The sprint then freezes a selection of already-triaged, already-estimated issues.
 
 ## What lives where
 

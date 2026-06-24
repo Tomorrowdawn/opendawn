@@ -3,15 +3,22 @@
 
 Usage:
     transition.py <ISSUE-ID-or-path> <new-status> \
-        [--implemented-by REF] [--regression-test REF] [--actual-hours N]
+        [--implemented-by REF] [--regression-test REF]
 
 Validates the transition against the state machine, edits the frontmatter,
 and commits if a transition actually occurred. No-op (exit 0, no commit) if
 the Issue is already in the target status. Illegal transition → exit 1.
+
+Timing is auto-derived from git: when transitioning to `implemented`, the
+script reverse-looks-up the commit that moved this Issue to `in-progress`
+(via the formatted `chore(issue): ISSUE-NNNN …→in-progress` commit messages)
+and computes `actual_work_hours` as the wall-clock delta between that commit's
+committer date and now. Agents never pass timing manually.
 """
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 LEGAL_TRANSITIONS = {
@@ -98,12 +105,49 @@ def find_issue_file(issues_dir, ref):
     die(f"Issue not found: {ref}")
 
 
+def find_transition_commit_date(issue_id, target_status, root):
+    """Return the committer date (aware UTC datetime) of the most recent commit
+    whose formatted subject records this Issue transitioning *to* target_status.
+
+    Commit subjects have the shape `chore(issue): ISSUE-NNNN <old>→<new>`, so a
+    transition *to* in-progress is matched on the `→in-progress` suffix. We
+    enumerate commit subjects in Python rather than using `git log --grep`,
+    because git's regex engine varies (BRE/ERE) and would mis-handle the
+    parentheses / Unicode arrow that `re.escape` produces.
+    Returns None if no such commit is found.
+    """
+    pattern = re.compile(
+        rf"^chore\(issue\): {re.escape(issue_id)} .+→{re.escape(target_status)}$"
+    )
+    for use_all in (False, True):
+        argv = ["git", "log", "--format=%cI %s"]
+        if use_all:
+            argv.append("--all")
+        res = subprocess.run(argv, cwd=root, capture_output=True, text=True)
+        if res.returncode != 0:
+            continue
+        for line in res.stdout.splitlines():
+            # %cI contains no spaces; split off the date, keep the rest as subject.
+            date_str, _, subject = line.partition(" ")
+            if pattern.match(subject):
+                return parse_git_iso(date_str)
+    return None
+
+
+def parse_git_iso(s):
+    """Parse a git %cI timestamp (ISO 8601 with explicit offset, e.g.
+    2026-06-24T12:30:45+08:00) into an aware UTC datetime."""
+    # fromisoformat handles `2026-06-24T12:30:45+08:00` on Py3.7+ and the
+    # bare `Z` suffix on Py3.11+; normalize just in case.
+    return datetime.fromisoformat(s.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
 def main():
     args = sys.argv[1:]
     if len(args) < 2:
         die(
             "usage: transition.py <ISSUE-ID-or-path> <new-status> "
-            "[--implemented-by REF] [--regression-test REF] [--actual-hours N]",
+            "[--implemented-by REF] [--regression-test REF]",
             code=2,
         )
 
@@ -115,8 +159,6 @@ def main():
             opts["implemented_by"] = next(it, None)
         elif a == "--regression-test":
             opts["regression_test"] = next(it, None)
-        elif a == "--actual-hours":
-            opts["actual_work_hours"] = next(it, None)
         else:
             die(f"unknown option: {a}", code=2)
 
@@ -140,18 +182,38 @@ def main():
         die(f"illegal transition: {cur} → {new_status} (legal from {cur}: {legal_str})")
 
     fm["status"] = new_status
+
+    issue_id = fm.get("id", issue_file.stem)
+
     if new_status == "implemented":
+        # Timing is auto-derived from git — agents never pass --actual-hours.
+        start = find_transition_commit_date(issue_id, "in-progress", root)
+        if start is None:
+            print(
+                f"warning: no in-progress transition commit found for {issue_id}"
+                " — actual_work_hours left unset",
+                file=sys.stderr,
+            )
+        else:
+            hours = round(
+                (datetime.now(timezone.utc) - start).total_seconds() / 3600.0, 1
+            )
+            if hours < 0:
+                print(
+                    f"warning: computed negative actual_work_hours ({hours}h) — "
+                    "transition commits may have skewed clocks; leaving unset",
+                    file=sys.stderr,
+                )
+            else:
+                fm["actual_work_hours"] = f"{hours:g}"
         if "implemented_by" in opts and opts["implemented_by"] is not None:
             fm["implemented_by"] = opts["implemented_by"]
         if "regression_test" in opts and opts["regression_test"] is not None:
             fm["regression_test"] = opts["regression_test"]
-        if "actual_work_hours" in opts and opts["actual_work_hours"] is not None:
-            fm["actual_work_hours"] = opts["actual_work_hours"]
 
     new_text = serialize_frontmatter(fm) + text[body_off:]
     issue_file.write_text(new_text)
 
-    issue_id = fm.get("id", issue_file.stem)
     msg = f"chore(issue): {issue_id} {cur}→{new_status}"
     subprocess.run(["git", "add", str(issue_file)], check=True, cwd=root)
     res = subprocess.run(

@@ -65,7 +65,7 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 |-------|---------|
 | `probe-and-plan` | Opt-in deep-dive — take-a-step-back, ought-to-be, design format. Loaded only when symptoms recur or architecture mismatch is suspected. |
 | `coding-instruction` | Spec for large-task workflow — instruction format, Change Scope, Test Boundary, blocker protocol, worktree lifecycle, task sizing. |
-| `issue-lifecycle` | Issue lifecycle for `roadmap/issues/` — state machine (draft→approved→in-progress→implemented), `transition.py` (auto-committing status changes), `list.py` (filter by status, shows Priority + Milestone columns). Issues carry a two-axis classification: `priority` (P0–P3, importance) and `milestone` (M-N / all / none, urgency). Shared by YuuPM (always) and YuuDev (before any Issue state transition and REFACTOR regression audits). |
+| `issue-lifecycle` | Issue lifecycle for `roadmap/issues/` — state machine (draft→approved→in-progress→implemented), `transition.py` (auto-committing status changes), `list.py` (filter by status, shows Priority + Milestone columns). Issues carry a two-axis classification: `priority` (P0–P3, importance) and `milestone` (M-N / all / none, urgency — concretely, whether the Issue is bound to the currently-active WIP milestone). Shared by YuuPM (always) and YuuDev (before any Issue state transition and REFACTOR regression audits). |
 | `yuutest` | Red-green subworkflow used during the test-first phase of a coding instruction. |
 | `python-purist` | Opinionated Python coding standards |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |

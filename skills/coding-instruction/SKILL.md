@@ -70,8 +70,8 @@ May update if required:
 Do not touch:
 - `{path-or-glob}` - {hard exclusion}
 
-## Pseudocode / Abstract Design
-{Data flow, boundaries, decision points. Avoid implementation trivia.}
+## Pseudocode / Idealized Design
+{The ideal-state model — data flow, types, boundaries, decision points. Most often this *is* the initial idealized code you'd write if nothing were wired to reality yet. Names what the core must be; does **not** prescribe how YuuCoder sequences or wires it. Avoid step-by-step execution trivia and avoid locking internal structure YuuCoder is free to choose.}
 
 ## Test Boundary
 Public entrypoint/API to test:
@@ -91,9 +91,6 @@ Forbidden test styles:
 - Brittle unit tests that constrain valid refactoring.
 - Removing or rewriting existing bad tests unless `## Change Scope` allows it.
 
-## Implementation Steps
-1. {Ordered step}
-
 ## Acceptance Criteria
 - [ ] {Command or behavior that can be verified}
 
@@ -103,9 +100,9 @@ Forbidden test styles:
 
 ### Required Fields
 
-An instruction is incomplete without: `## Objective`, `## Change Scope`, `## Test Boundary`, `## Implementation Steps`, `## Acceptance Criteria`. Missing fields → YuuCoder records a blocker; no implementation starts.
+An instruction is incomplete without: `## Objective`, `## Change Scope`, `## Test Boundary`, `## Pseudocode / Idealized Design`, `## Acceptance Criteria`. Missing fields → YuuCoder records a blocker; no implementation starts.
 
-Acceptance criteria must be runnable or directly observable. No acceptance criteria means no handoff. The test boundary must name the public entrypoint, observable outcome, red-test shape, and exact command. No test boundary means no handoff.
+Acceptance criteria must be runnable or directly observable. No acceptance criteria means no handoff. The test boundary must name the public entrypoint, observable outcome, red-test shape, and exact command. No test boundary means no handoff. `## Implementation Steps` is deliberately **not** a field — the instruction declares *what* (objective, idealized design, test boundary, metrics) and *where* (change scope), not *how* or in what order; YuuCoder drives its own execution loop (idealize → isolate → wire → debug-loop) to reach green. If you find yourself writing an ordered step list, fold the intent into the pseudocode or the acceptance criteria instead. A non-binding `## Hints / Suggested Order` section is allowed only when a non-obvious ordering genuinely matters (e.g., a DB migration must precede the code that reads it); mark it clearly as optional.
 
 ## Change Scope Semantics
 
@@ -118,7 +115,11 @@ Four categories. A path must match one allowed category before YuuCoder edits, c
 | `May update if required` | Narrow side-effect files (barrel exports, registries, generated indexes, snapshots, metadata) — only when the implementation requires it |
 | `Do not touch` | Hard exclusion, overrides everything |
 
+**`Do not touch` — debug-only exception.** YuuCoder may **temporarily** add `print`/`assert`/log instrumentation inside a `Do not touch` path for the sole purpose of locating the cause of a failure during the Debugging Loop. The instrumentation must be reverted before delivery (or before any Blocker report on that code); it never lands in a commit, and it is never a fix. This is read-only-in-spirit: the goal is to see the behavior, not to alter it. If the cause turns out to live in that `Do not touch` path → that's a blocker with evidence; do not commit the instrumentation, do not attempt the fix in place.
+
 Use `none` for empty categories. Pseudocode implying a file outside scope → YuuCoder notes it as a side note, does not patch around it, records a blocker if implementation truly requires it.
+
+**Freedom inside scope.** The writer controls *where* (these four categories) and *what* (objective, idealized design, test boundary, acceptance). The writer does **not** control *how* or *in what order* YuuCoder reaches green. Once a path matches `May modify` / `May create` / `May update if required`, YuuCoder is free to structure, name, sequence, refactor internally, and even rewrite files within that glob as its execution loop requires — the test boundary and acceptance criteria, not the pseudocode, are the binding contract. Treat the scope categories as a **blast-radius declaration**: a wide `May modify` is the writer warning the reviewer (and YuuCoder) that this change may span broadly, not a procedure to follow. Narrow scope = small, contained change; broad scope = the writer signals "leave room, this may need to move things around." Neither is a how-to.
 
 ## Test Boundary Semantics
 
@@ -164,14 +165,7 @@ Before handing to YuuCoder: target worktree must exist, be on the intended branc
 
 ## Worktree Environment Policy
 
-Before writing instructions for a task requiring an implementation worktree, check `AGENTS.md` for a project-level policy named like:
-
-- `Worktree environment reuse`
-- `Worktree Environment`
-- `Dependency Cache`
-- `Setup Reuse`
-
-If missing, ask the human to add the project-level rule before handoff. Do not guess a cache strategy in the instruction.
+Before writing instructions for a task requiring an implementation worktree, check `AGENTS.md` for a project-level policy named **`Worktree environment reuse`**. If missing, ask the human to add it before handoff. Do not guess a cache strategy in the instruction.
 
 Coding instructions should avoid concrete cache implementations unless `AGENTS.md` already defines them. Prefer:
 
@@ -307,7 +301,7 @@ Before stopping for preflight blockers, YuuCoder finishes every read-only safe c
 4. Work only in the instruction-declared worktree, or current git top-level when not declared.
 5. Verification fails → stay on current step.
 6. Scope violation → record blocker; do not patch around it.
-7. Never touch files outside `## Change Scope`.
+7. Never touch files outside `## Change Scope` — except the `Do not touch` debug-only instrumentation exception in Change Scope Semantics (temporary `print`/`assert`, reverted before delivery / before a Blocker report; never a fix, never a commit).
 8. Scope complete → stop.
 9. Self-review (types, debris, acceptance, external libs) → all must pass before delivery.
 10. Never create, switch, pull, rebase, merge, push, or otherwise manage branches/worktrees.
