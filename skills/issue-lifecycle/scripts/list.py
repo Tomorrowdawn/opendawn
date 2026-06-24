@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""List REQs by status. Usage: list.py [status-filter]
+"""List Issues by status. Usage: list.py [status-filter]
 
-Scans roadmap/reqs/REQ-*.md, parses frontmatter, prints a table.
-No filter → all REQs. Filter → one of draft|approved|in-progress|implemented.
+Scans roadmap/issues/ISSUE-*.md, parses frontmatter, prints a table.
+No filter → all Issues. Filter → one of draft|approved|in-progress|implemented.
 """
 import subprocess
 import sys
@@ -55,14 +55,14 @@ def main():
         )
         sys.exit(2)
 
-    reqs_dir = repo_root() / "roadmap" / "reqs"
-    if not reqs_dir.is_dir():
+    issues_dir = repo_root() / "roadmap" / "issues"
+    if not issues_dir.is_dir():
         suffix = f" with status={filt}" if filt else ""
-        print(f"(no REQs{suffix} — roadmap/reqs/ does not exist yet)")
+        print(f"(no Issues{suffix} — roadmap/issues/ does not exist yet)")
         return
 
     rows = []
-    for f in sorted(reqs_dir.glob("REQ-*.md")):
+    for f in sorted(issues_dir.glob("ISSUE-*.md")):
         text = f.read_text()
         fm = parse_frontmatter(text)
         if not fm:
@@ -75,6 +75,8 @@ def main():
                 fm.get("id", f.stem),
                 fm.get("slug", ""),
                 status,
+                fm.get("priority", ""),
+                fm.get("milestone", ""),
                 fm.get("estimated_work_hours", ""),
                 fm.get("actual_work_hours", ""),
                 first_h1(text),
@@ -83,10 +85,10 @@ def main():
 
     if not rows:
         suffix = f" with status={filt}" if filt else ""
-        print(f"(no REQs{suffix})")
+        print(f"(no Issues{suffix})")
         return
 
-    headers = ("ID", "Slug", "Status", "Est.h", "Act.h", "Title")
+    headers = ("ID", "Slug", "Status", "Pri", "Milestone", "Est.h", "Act.h", "Title")
     widths = [
         max(len(str(r[i])) for r in rows + [headers]) for i in range(len(headers))
     ]
