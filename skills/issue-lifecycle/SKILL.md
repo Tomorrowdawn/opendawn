@@ -13,16 +13,27 @@ State and timing are decoupled: the Issue **lifecycle state machine** (4 states,
 ## State machine
 
 ```
+                     ┌──[yuupm]──→ deprecated (terminal)
+                     │
 draft ──[yuupm]──→ approved ──[YuuDev: BEFORE opening worktree]──→ in-progress ──[YuuDev: at user-instructed merge]──→ implemented
+  │                    │                                                         │
+  └──[yuupm]──→ deprecated (terminal)                                            │
+                       │                                                         │
+                       └──[yuupm or YuuDev]──→ deprecated (terminal)             │
+                                                                                 │
+                                                                   └──[YuuDev]──→ deprecated (terminal)
 ```
 
 | Transition | Owner | Trigger |
 |------------|-------|---------|
 | `draft → approved` | yuupm | User aligns on the scenario. yuupm also sets `priority` and `milestone` at this point (two-axis classification). |
+| `draft → deprecated` | yuupm | Draft no longer needed — superseded, re-scoped, or abandoned. |
 | `approved → in-progress` | YuuDev | **Before** opening the worktree / creating the implementation branch. The transition commit lands first, then YuuDev branches off. |
+| `approved → deprecated` | yuupm | During ISSUE-CHANGE: another Issue supersedes this one, or the requirement is abandoned post-approval. yuupm invokes `transition.py ... deprecated`. |
 | `in-progress → implemented` | YuuDev | **At merge time** — when the user instructs YuuDev to merge (direct mode: final verified commit; MANAGER mode: after collecting YuuCoder reports and merging). YuuDev transitions every Issue associated with the merged branch. |
+| `in-progress → deprecated` | YuuDev | Work started but direction changed; the Issue is abandoned mid-implementation. |
 
-`implemented` is terminal. A new requirement replacing an implemented one goes through ISSUE-CHANGE (see yuupm's triage), not a backwards transition.
+`implemented` and `deprecated` are both terminal. A new requirement replacing an implemented or deprecated one goes through ISSUE-CHANGE (see yuupm's triage), not a backwards transition.
 
 ## Issue frontmatter schema
 
@@ -30,7 +41,7 @@ draft ──[yuupm]──→ approved ──[YuuDev: BEFORE opening worktree]─
 ---
 id: ISSUE-0001
 slug: {kebab-case-slug}
-status: draft | approved | in-progress | implemented
+status: draft | approved | in-progress | implemented | deprecated
 milestone: M-01            # which milestone this issue rolls up into — M-N | all | none
 priority: P1               # importance axis — P0 | P1 | P2 | P3
 estimated_work_hours: 4
@@ -39,11 +50,12 @@ net_effort_hours: 3.0
 efficiency: 0.35
 implemented_by: <commit/branch/ref>
 regression_test: <path or scenario ref>
+deprecated_reason: <why>   # only set when status is deprecated
 ---
 ```
 
-- `milestone` — **urgency axis**: which milestone the Issue rolls up into. Concretely, the urgency context is *whether this Issue is bound to the currently-active (WIP) milestone* — `M-N` (links to a specific entry in `roadmap/milestones.md`), `all` (cross-milestone, almost always paired with `priority: P0`), or `none` (organically collected, not bound to a milestone).
-- `priority` — **importance axis**, set at `approved` by yuupm with the user after consulting `milestones.md` status. P0 = cross-milestone critical; P1 = load-bearing for its linked milestone; P2 = core incremental, skippable; P3 = minor polish. yuupm applies cross-check rules (an Issue bound to a WIP milestone must be ≥ P2; one that decides the milestone's final shape must be ≥ P1).
+- `milestone` — **urgency axis**: which milestone the Issue rolls up into. Concretely, the urgency context is *whether this Issue is bound to the currently-active (WIP) milestone* — `M-N` (links to a specific milestone file under `roadmap/milestones/`), `all` (cross-milestone, almost always paired with `priority: P0`), or `none` (organically collected, not bound to a milestone).
+- `priority` — **importance axis**, set at `approved` by yuupm with the user after consulting `roadmap/milestones/index.md` status. P0 = cross-milestone critical; P1 = load-bearing for its linked milestone; P2 = core incremental, skippable; P3 = minor polish. yuupm applies cross-check rules (an Issue bound to a WIP milestone must be ≥ P2; one that decides the milestone's final shape must be ≥ P1).
 - `estimated_work_hours` — set at `approved`, by yuupm with the user, from scenario + `explore` reconnaissance + past Issue git-trend. Recorded **before** sprint selection; never adjusted to fit the 12h core budget.
 - `cycle_hours` — **wall-clock cycle time**, auto-derived by `transition.py` at `→implemented`. The script reverse-looks-up the commit that moved this Issue `→in-progress` (matched on the formatted `chore(issue): ISSUE-NNNN …→in-progress` subject) and takes the wall-clock delta between that commit's committer date and the `→implemented` commit (rounded to 0.1h). Includes lunch, sleep, and cross-task interruptions — **deliberately**, because cycle length is itself a signal of environmental friction (long cycle ≠ laziness; long cycle hints at context-switching cost). If no `→in-progress` commit is found, the field is left unset and a warning is printed.
 - `net_effort_hours` — **true working time**, auto-derived by `transition.py` at `→implemented` from the local, gitignored timesheet at `roadmap/issues/.timetracking/ISSUE-NNNN.jsonl` (populated by `timesheet.py pause/resume`). Sums all `resume→pause` segments; if the tail is an un-closed `resume`, auto-closes it with `now`. **Leaving the timesheet empty is legal** — the field is then left unset (and a warning is printed); `cycle_hours` is still computed. Used to answer "did the next issue actually take the time we estimated?" — calibration for `estimated_work_hours` on future Issues.
@@ -83,7 +95,8 @@ python3 <skill-path>/scripts/list.py [status-filter]
 
 ```bash
 python3 <skill-path>/scripts/transition.py <ISSUE-ID-or-path> <new-status> \
-  [--implemented-by REF] [--regression-test REF] [--no-archive]
+  [--implemented-by REF] [--regression-test REF] \
+  [--deprecated-reason REASON] [--no-archive]
 ```
 
 - `<ISSUE-ID-or-path>` accepts: `ISSUE-0001`, `0001`, `1`, or a full path to the `.md` file.
@@ -95,6 +108,10 @@ python3 <skill-path>/scripts/transition.py <ISSUE-ID-or-path> <new-status> \
   - **auto-computes `efficiency`** = net/cycle (skipped if either input is missing or net > cycle),
   - **archives the timesheet** to `.timetracking/archive/ISSUE-NNNN.jsonl` (or deletes it with `--no-archive`).
   - Preserves `priority` / `milestone` / `estimated_work_hours` (and any other fields) in the canonical frontmatter order.
+- When transitioning to `deprecated`:
+  - writes `deprecated_reason` if `--deprecated-reason` is provided,
+  - **no timing computed** — deprecated issues never carried timing,
+  - **no timesheet touched** — the local timesheet (if any) is left as-is.
 - **No `--cycle-hours` / `--net-effort-hours` / `--efficiency` flags** — timing is always derived from git + the local timesheet, never supplied by the agent.
 - Commits with subject `chore(issue): ISSUE-NNNN <old>→<new>`. When transitioning to `implemented`, the commit **body** carries an accounting line so `git show` reveals the timing breakdown without bloating the log:
   ```
@@ -107,6 +124,10 @@ python3 <skill-path>/scripts/transition.py <ISSUE-ID-or-path> <new-status> \
   chore(issue): ISSUE-0001 in-progress→implemented
 
   actual: cycle=8.5h (no timesheet; net_effort not tracked)
+  ```
+  For deprecated transitions, the commit message has no body:
+  ```
+  chore(issue): ISSUE-0001 approved→deprecated
   ```
 - No-op (exit 0, no commit) if the Issue is already in the target status. **This makes `transition.py ISSUE-NNNN in-progress` idempotent** — re-running it after the Issue is already `in-progress` is safe and is exactly what `/ytask-start` relies on (it calls the transition unconditionally; the no-op message is the normal "already started" branch). The same applies to `timesheet.py ... resume` (idempotent when the timesheet tail is already `resume`); **`timesheet.py ... pause` is strict** — pause-after-pause is an error, because pause is always a human action and a repeat means the user lost track of state.
 - Does **not** handle re-tiering (priority/milestone-only edits) — that's yuupm's direct-edit + `chore(issue): ... re-tier` commit, because no state transition occurs.
@@ -136,13 +157,14 @@ Append-only, **gitignored** jsonl at `roadmap/issues/.timetracking/ISSUE-NNNN.js
 ### list.py
 
 ```bash
-python3 <skill-path>/scripts/list.py [status-filter]
+python3 <skill-path>/scripts/list.py [status-filter] [--milestone M-N]
 ```
 
 - Scans `roadmap/issues/ISSUE-*.md`, parses frontmatter, prints a table.
-- No filter → all Issues, **capped at 15** to protect agent context. Explicit filter (one of `draft | approved | in-progress | implemented`) → **uncapped** (the agent asked for one status; show all of it).
+- No filter → all Issues, **capped at 15** to protect agent context. Explicit filter (one of `draft | approved | in-progress | implemented | deprecated`) → **uncapped** (the agent asked for one status; show all of it).
+- `--milestone M-N` filters to only Issues whose `milestone:` field is exactly `M-N`. Combinable with a status filter (e.g. `list.py approved --milestone M-03`). This answers "what issues belong to this milestone?" without milestones needing a `links` field.
 - Sort order (applied whether or not a filter is set): **status-rank → priority-rank → ID**.
-  - Status rank: `in-progress` (0) → `approved` (1) → `draft` (2) → `implemented` (3); unknown status sorts last. Active/incoming work surfaces first; terminal Issues truncate first when the cap bites.
+  - Status rank: `in-progress` (0) → `approved` (1) → `draft` (2) → `implemented` (3) → `deprecated` (4); unknown status sorts last. Active/incoming work surfaces first; terminal Issues truncate first when the cap bites.
   - Priority rank within a status group: `P0` → `P3`; unknown priority sorts last.
 - Columns: `ID`, `Slug`, `Status`, `Pri`, `Milestone`, `Est.h`, `Cyc.h`, `Net.h`, `Eff%`, `Title` (first H1). `Cyc.h` / `Net.h` are empty for non-implemented Issues; `Eff%` is shown as a percentage (e.g. `35%`).
 - When the cap truncates, a `(showing 15 of N — …)` notice prints after the table; pass a status-filter to see the rest of one status.
@@ -153,13 +175,17 @@ python3 <skill-path>/scripts/list.py [status-filter]
 | Agent | Script | When |
 |-------|--------|------|
 | yuupm | `list.py` | Triage, two-axis cross-checks (priority + milestone), sprint assembly from the approved backlog, drift detection. |
+| yuupm | `list.py --milestone M-N` | Answers "what issues belong to milestone M-N?" — scans all issues by their `milestone:` field. |
 | yuupm | — (edits file directly, then commits `chore(issue): ISSUE-NNNN draft→approved`) | Sets `status: approved` and sets `priority` + `milestone` at approval. |
+| yuupm | — (edits file directly, then commits `chore(issue): ISSUE-NNNN draft→deprecated`) | Marks a draft as deprecated when abandoned pre-approval. |
+| yuupm | `transition.py ... deprecated --deprecated-reason "…"` | During ISSUE-CHANGE: marks an approved Issue as deprecated when superseded. This is the one exception to yuupm's rule of not using transition.py — deprecated is an ISSUE-CHANGE terminal action, not a normal lifecycle progression. |
 | yuupm | — (edits frontmatter directly) | Re-tiering priority/milestone with no state transition — commits `chore(issue): ISSUE-NNNN re-tier {brief}`. |
 | YuuDev | `transition.py ... in-progress` | **Before** opening the worktree / creating the implementation branch for an approved Issue. |
+| YuuDev | `transition.py ... deprecated` | When work started on an Issue but the direction changed mid-implementation. |
 | YuuDev | `timesheet.py ... pause/resume` | Optional, at any point while an Issue is `in-progress`, to capture true working intervals for the `net_effort_hours` metric. Recommended before any context switch (lunch, EOD, switching to another Issue, waiting on a long review). Not invoking it is legal — the Issue simply lacks net_effort/efficiency at `→implemented`. |
 | YuuDev | `transition.py ... implemented` | **At merge time** — when the user instructs a merge. Transitions every Issue associated with the merged branch. `cycle_hours` is auto-computed from git; `net_effort_hours` / `efficiency` are auto-computed from the local timesheet if present. Pass `--implemented-by` / `--regression-test`. |
 | YuuCoder | — | Never. Pure implementation. |
 
-> **Note on `draft → approved`**: yuupm owns the writing phase and may edit the Issue file freely (scenario, frontmatter including priority/milestone) before approval. Once `status: approved` is set, the Issue is a contract — only `transition.py` touches the `status` field after that, and only YuuDev invokes it. yuupm may still edit `priority`/`milestone` (re-tier) post-approval without a state transition. yuupm sets `approved` by editing the frontmatter directly and committing with `chore(issue): ISSUE-NNNN draft→approved`.
+> **Note on `draft → approved`**: yuupm owns the writing phase and may edit the Issue file freely (scenario, frontmatter including priority/milestone) before approval. Once `status: approved` is set, the Issue is a contract — only `transition.py` touches the `status` field after that (with one exception: `→deprecated` during ISSUE-CHANGE, see Who Calls What above), and only YuuDev invokes it for lifecycle progressions. yuupm may still edit `priority`/`milestone` (re-tier) post-approval without a state transition. yuupm sets `approved` by editing the frontmatter directly and committing with `chore(issue): ISSUE-NNNN draft→approved`. yuupm sets `draft → deprecated` similarly by editing frontmatter directly and committing `chore(issue): ISSUE-NNNN draft→deprecated`.
 
 > **Note on timesheet vs lifecycle**: `timesheet.py` operates **inside** the `in-progress` state — it does not change the Issue's lifecycle `status` and never commits. Pause/resume is a high-frequency, local-only event; mixing it into the lifecycle state machine would (a) pollute `git log` with `chore(issue): ... paused` noise, and (b) conflate "the Issue's requirement lifecycle" (draft/approved/in-progress/implemented) with "the human's working rhythm". Keeping them separate means a 5-interruption Issue still produces exactly one `→implemented` commit, with the timing breakdown in its body.

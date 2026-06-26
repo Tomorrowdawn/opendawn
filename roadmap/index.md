@@ -4,7 +4,7 @@ This directory is the project-level, git-tracked home for stable long-term plans
 
 ```
 1. Charter       charter.md          Long-term vision + current-phase goal (with a stopping point)
-2. Milestones    milestones.md       A chronological list of technical stopping points (grows freely)
+2. Milestones    milestones/M-NN-*.md  Per-milestone files (one per stopping point) + index.md for ordering
 3. Issues        issues/ISSUE-NNNN-*.md  Features / fixes / refactors from ANY source, triaged on two axes
 4. Sprint        sprint.md           A frozen selection pulled FROM the issue backlog
 ```
@@ -18,8 +18,8 @@ A sprint is built **up** from issues — never the reverse. Issues accumulate fi
 | Layer | File | Role |
 |-------|------|------|
 | **Charter** | `roadmap/charter.md` | The project's highest directive. Two parts: the durable long-term vision, and the current-phase goal with a definite stopping point. |
-| **Milestones** | `roadmap/milestones.md` | A single chronological list. Each entry (`M-N`) is a technical stopping point — what it builds (design level, not implementation plan) and its observable stopping criterion. Status: `completed → WIP → draft` reads top-to-bottom. Frequently edited (by the human, or in dialogue with yuupm). |
-| **Issues** | `roadmap/issues/ISSUE-NNNN-*.md` | Individual features / bug fixes / refactor phases, each a user-observable contract. Any source (milestone-derived, organically found, or cross-milestone). Classified on two axes: `priority` (P0–P3) and `milestone` (M-N / all / none). |
+| **Milestones** | `roadmap/milestones/M-NN-*.md` + `roadmap/milestones/index.md` | Each milestone is its own file with frontmatter (`id`, `slug`, `status`, `builds`, `stops`). Statuses: `draft | WIP | completed | deprecated`. At most one `WIP` at a time. The `index.md` maintains chronological ordering and status overview. Milestones are abstract goals — they do not list which issues belong to them. Issues link to milestones via their `milestone:` field; `list.py --milestone M-N` answers "what issues?" on demand. Files are never deleted — completed and deprecated milestones persist so Issue references never dangle.
+| **Issues** | `roadmap/issues/ISSUE-NNNN-*.md` | Individual features / bug fixes / refactor phases, each a user-observable contract. Any source (milestone-derived, organically found, or cross-milestone). Classified on two axes: `priority` (P0–P3) and `milestone` (M-N / all / none). Statuses: `draft → approved → in-progress → implemented | deprecated` (both `implemented` and `deprecated` are terminal).
 | **Sprint** | `roadmap/sprint.md` | A frozen selection from the approved backlog, sized to a 40h effective / 12h core budget (P0+P1 ≈ 12h core, P2/P3 fill to 40h). The `## Frozen Scope` section is locked once committed; mid-sprint changes go through ISSUE-CHANGE. |
 | **Backlog (fuzzy)** | `roadmap/backlog.md` | Only for ideas too vague to write a scenario for yet. The bar for "too vague" is high — an Issue with no current sprint is still a perfectly valid Issue. |
 | **Lessons** | `roadmap/lessons/lesson-*.md` | Records of Issue changes and their reasons (drift, correction, learning). |

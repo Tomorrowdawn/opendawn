@@ -1,6 +1,6 @@
 ---
 name: probe-and-plan
-description: OPT-IN deep-dive tool. Use only when the user signals root-cause investigation: symptoms recurring after patches, repeated patches on the same area, suspected architecture mismatch, or a redesign request. Loads when the user explicitly asks for probe/step-back/ought-to-be analysis. NOT a default phase. Do NOT auto-load for routine bug fixes or feature work.
+description: "OPT-IN deep-dive tool. Use only when the user signals root-cause investigation: symptoms recurring after patches, repeated patches on the same area, suspected architecture mismatch, or a redesign request. Loads when the user explicitly asks for probe/step-back/ought-to-be analysis. NOT a default phase. Do NOT auto-load for routine bug fixes or feature work."
 user-invocable: true
 ---
 

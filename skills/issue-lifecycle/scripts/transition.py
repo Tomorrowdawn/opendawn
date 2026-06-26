@@ -3,7 +3,8 @@
 
 Usage:
     transition.py <ISSUE-ID-or-path> <new-status> \
-        [--implemented-by REF] [--regression-test REF] [--no-archive]
+        [--implemented-by REF] [--regression-test REF] \
+        [--deprecated-reason REASON] [--no-archive]
 
 Validates the transition against the state machine, edits the frontmatter,
 and commits if a transition actually occurred. No-op (exit 0, no commit) if
@@ -31,6 +32,10 @@ Timing is auto-derived, never supplied by the agent:
 On →implemented, the timesheet jsonl is archived to
 `.timetracking/archive/ISSUE-NNNN.jsonl` unless --no-archive is passed, in
 which case it is deleted.
+
+On →deprecated, no timing is computed, no timesheet is touched. The
+--deprecated-reason flag writes a `deprecated_reason` frontmatter field.
+Deprecated is terminal — no further transitions.
 """
 import json
 import re
@@ -40,62 +45,18 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-LEGAL_TRANSITIONS = {
-    "draft": {"approved"},
-    "approved": {"in-progress"},
-    "in-progress": {"implemented"},
-    "implemented": set(),  # terminal
-}
+from _common import die, parse_frontmatter, repo_root, FRONTMATTER_ORDER, VALID
 
-FRONTMATTER_ORDER = [
-    "id",
-    "slug",
-    "status",
-    "milestone",
-    "priority",
-    "estimated_work_hours",
-    "cycle_hours",
-    "net_effort_hours",
-    "efficiency",
-    "implemented_by",
-    "regression_test",
-]
+LEGAL_TRANSITIONS = {
+    "draft": {"approved", "deprecated"},
+    "approved": {"in-progress", "deprecated"},
+    "in-progress": {"implemented", "deprecated"},
+    "implemented": set(),  # terminal
+    "deprecated": set(),   # terminal
+}
 
 TT_DIR_NAME = ".timetracking"
 ARCHIVE_DIR_NAME = "archive"
-
-
-def repo_root():
-    res = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True
-    )
-    if res.returncode != 0:
-        die(f"not in a git repo: {res.stderr.strip()}")
-    return Path(res.stdout.strip())
-
-
-def die(msg, code=1):
-    print(msg, file=sys.stderr)
-    sys.exit(code)
-
-
-def parse_frontmatter(text):
-    """Parse simple flat YAML frontmatter. Returns (dict, body_offset) or ({}, 0)."""
-    if not text.startswith("---\n"):
-        return {}, 0
-    end = text.find("\n---\n", 4)
-    if end == -1:
-        return {}, 0
-    fm = {}
-    for line in text[4:end].splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"):
-            continue
-        if ":" not in line:
-            continue
-        key, _, val = line.partition(":")
-        fm[key.strip()] = val.strip()
-    return fm, end + len("\n---\n")
 
 
 def serialize_frontmatter(fm):
@@ -262,23 +223,29 @@ def archive_timesheet(root, issue_id, no_archive):
     src.unlink()
 
 
-def main():
+def main() -> None:
     args = sys.argv[1:]
     if len(args) < 2:
         die(
             "usage: transition.py <ISSUE-ID-or-path> <new-status> "
-            "[--implemented-by REF] [--regression-test REF]",
+            "[--implemented-by REF] [--regression-test REF] "
+            "[--deprecated-reason REASON] [--no-archive]",
             code=2,
         )
 
     issue_ref, new_status = args[0], args[1]
-    opts = {}
+    if new_status not in VALID:
+        die(f"invalid status: {new_status} (valid: {sorted(VALID)})", code=2)
+
+    opts: dict[str, str | bool] = {}
     it = iter(args[2:])
     for a in it:
         if a == "--implemented-by":
             opts["implemented_by"] = next(it, None)
         elif a == "--regression-test":
             opts["regression_test"] = next(it, None)
+        elif a == "--deprecated-reason":
+            opts["deprecated_reason"] = next(it, None)
         elif a == "--no-archive":
             opts["no_archive"] = True
         else:
@@ -307,9 +274,15 @@ def main():
 
     issue_id = fm.get("id", issue_file.stem)
 
-    accounting_lines = []  # goes into the commit body
+    accounting_lines: list[str] = []
 
-    if new_status == "implemented":
+    if new_status == "deprecated":
+        reason = opts.get("deprecated_reason")
+        if reason and isinstance(reason, str):
+            fm["deprecated_reason"] = reason
+        # No timing computed; no timesheet archived.
+
+    elif new_status == "implemented":
         # --- cycle_hours (wall-clock, always available from git) ---
         start = find_transition_commit_date(issue_id, "in-progress", root)
         cycle_hours = None
