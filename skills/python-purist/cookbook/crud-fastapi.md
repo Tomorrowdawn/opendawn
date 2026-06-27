@@ -56,7 +56,7 @@ Every layer has exactly one job. If you can't describe a file's job in 5 words, 
 
 ## 1. Domain Models
 
-`src/app/domain/models.py` — the core entity. Pure data, no ORM, no HTTP. Uses `msgspec.Struct` for zero-cost serialization and immutability.
+`src/app/domain/models.py` — the core entity. Pure data, no ORM, no HTTP. Uses `msgspec.Struct` for zero-cost serialization. Freeze only entities that are truly immutable at runtime.
 
 ```python
 from __future__ import annotations
@@ -72,7 +72,7 @@ class TaskStatus(str, enum.Enum):
     DONE = "done"
 
 
-class Task(msgspec.Struct, frozen=True):
+class Task(msgspec.Struct):
     """Domain entity — not coupled to any storage or transport layer."""
     id: str
     title: str
@@ -81,7 +81,7 @@ class Task(msgspec.Struct, frozen=True):
     created_at: str = ""  # ISO 8601
 
 # 🔌 EXTENSION: add another entity (e.g. Project, Comment) as a new Struct here.
-#    Keep it frozen=True. Never put ORM or HTTP concerns in domain models.
+#    Use frozen=True only for real immutable values/events. Never put ORM or HTTP concerns in domain models.
 ```
 
 The domain model is the truth. Nothing outside this file knows how a `Task` is stored or serialized.
@@ -533,7 +533,7 @@ When adding a new entity (e.g. `Project`), follow this table. Each row is one fi
 
 | Step | File | What to do |
 |------|------|-------------|
-| 1 | `domain/models.py` | Add `Project(msgspec.Struct, frozen=True)` |
+| 1 | `domain/models.py` | Add `Project(msgspec.Struct)`; use `frozen=True` only if the project is a real immutable value/event |
 | 2 | `api/schemas.py` | Add `ProjectCreateRequest`, `ProjectUpdateRequest`, `ProjectResponse` + 3 conversion functions |
 | 3 | `repository/protocol.py` | Add `ProjectRepository(Protocol)` |
 | 4 | `repository/sql.py` | Add `SqlProjectRepository` |

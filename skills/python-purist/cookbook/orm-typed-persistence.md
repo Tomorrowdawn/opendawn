@@ -47,7 +47,7 @@ from typing import ClassVar, Any
 
 # ── 领域模型 (msgspec.Struct) ──
 
-class User(msgspec.Struct, frozen=True):
+class User(msgspec.Struct):
     """用户领域模型 —— 全链路类型安全"""
     id: str
     name: str
@@ -189,7 +189,7 @@ class ProductModel(Model):
 ### 策略 4: 关联对象——惰性加载替代 to_builtins(recursive=True)
 
 ```python
-class Order(msgspec.Struct, frozen=True):
+class Order(msgspec.Struct):
     id: str
     user_id: str
     items: list["OrderItem"] = msgspec.field(default_factory=list)

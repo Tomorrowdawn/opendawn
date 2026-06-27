@@ -13,7 +13,7 @@ tags:
 related:
   - ../best-practice/type-safety.md
   - ../best-practice/fail-fast.md
-summary: "Using mutable objects as dict keys or set elements violates Python's hash contract. The object disappears from the collection after mutation, creating silent data loss. Use frozen/immutable objects or hash only an immutable subset of fields."
+summary: "Using mutable objects as dict keys or set elements violates Python's hash contract. The object disappears from the collection after mutation, creating silent data loss. Freeze hash keys only when the object is truly immutable, or hash only an immutable subset of fields."
 ---
 
 # Mutable Hash Keys: The Hash Contract Violation
@@ -65,7 +65,7 @@ assert points  # {Point(x=999, y=2): "originally (1,2)"} -- but it IS there!
 
 4. **Re-insertion creates duplicates**: If you insert the mutated `p` again, the dict now contains **two** entries with logically equal keys -- one in the old hash bucket, one in the new. `len(points)` increases. Iteration yields duplicates.
 
-## Good Code: Immutable Objects (Preferred)
+## Good Code: Immutable Value Objects
 
 ```python
 @define(frozen=True)  # frozen=True makes it immutable AND generates correct __hash__
@@ -86,7 +86,7 @@ assert points[Point(x=1, y=2)] == "first"
 assert points[Point(x=999, y=2)] == "second"
 ```
 
-## Good Code: Hash on Immutable Subset (When Immutability Is Impractical)
+## Good Code: Hash on Immutable Subset (When the Object Must Update)
 
 ```python
 @define
@@ -122,9 +122,9 @@ assert sessions[session] == "active"  # True
 
 ## Why It's Good / Key Differences
 
-- **`frozen=True` enforces immutability at the language level**: `dataclass(frozen=True)` prevents field assignment after construction. The hash is computed once and never changes. The contract is mechanically enforced.
+- **`frozen=True` enforces immutability at the language level**: `dataclass(frozen=True)` prevents field assignment after construction. Use it when the object is truly a value object whose fields never change after construction.
 - **Hash-on-ID is explicit and bounded**: `UserSession.__hash__` uses only `session_id` -- a field that never changes. The docstring and type annotations make it clear which fields participate in hashing and which don't.
 - **`__eq__` matches `__hash__`**: If `hash(x) == hash(y)` but `x != y`, dict/set fall back to equality check. By basing both on `session_id`, the contract `x == y ⇒ hash(x) == hash(y)` holds.
 - **No silent data loss**: In both approaches, once an object is inserted into a dict/set, it remains reachable. No ghost entries. No memory leaks.
 
-> Core principle: Python's dict and set rely on a contract: hash must not change, and `x == y` must imply `hash(x) == hash(y)`. Use `frozen=True` dataclasses whenever possible. When mutability is required, hash only on an immutable subset of fields and ensure equality matches.
+> Core principle: Python's dict and set rely on a contract: hash must not change, and `x == y` must imply `hash(x) == hash(y)`. Use `frozen=True` for real value objects. When the object has legitimate mutable state, hash only on an immutable subset of fields and ensure equality matches.

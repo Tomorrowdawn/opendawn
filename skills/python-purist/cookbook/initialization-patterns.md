@@ -75,14 +75,15 @@ class TaskCreateRequest(msgspec.Struct):
     description: str = ""
 
 # Domain entity —— 纯数据，在各层之间传递
-class Task(msgspec.Struct, frozen=True):
+class Task(msgspec.Struct):
     id: str
     title: str
     status: str = "todo"
 ```
 
 **规则**：
-- `frozen=True` 用于配置和不可变实体（如果可变，则不需要，避免滥用）
+- `frozen=True` 用于配置、值对象、发布事件、hash key 等真正运行时不可变的数据；需要业务更新的实体不要冻结
+- append-only 不是 `frozen=True`：保留可变容器，用明确的 append API 和测试保护历史不被改写
 - 默认值放在字段声明中
 - 不要给 Struct 加行为方法（如需行为，拆为 Struct + `@define` 行为类）
 - 用 `msgspec.convert(raw, Type)` 在边界处验证一次
@@ -323,7 +324,8 @@ api_config = AgentConfig.from_api_response({"agent": {"name": "bot"}})
 我要写一个类，怎么初始化？
 
 数据容器（会序列化）
-  → msgspec.Struct + frozen=True
+  → msgspec.Struct
+  → frozen=True 只用于配置、值对象、发布事件、hash key、并发快照
   → 默认值放字段声明
   → 边界处 msgspec.convert() 验证一次
 

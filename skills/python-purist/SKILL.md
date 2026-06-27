@@ -76,6 +76,7 @@ For everything not covered by a cookbook recipe, use this table to find the righ
 | Async operations, I/O, concurrency | `coroutine-vs-thread.md` |
 | Class hierarchies, inheritance | `composition-over-inheritance.md` |
 | Choosing `@define` vs `msgspec.Struct` | `struct-vs-define.md` (also see `cookbook/initialization-patterns.md`) |
+| Deciding whether to use `frozen=True`, tuple, or mutable containers | `struct-vs-define.md` + `case-study/frozen-overuse.md` |
 | Creating classes, constructors, `__init__`, DI, from_config | `cookbook/initialization-patterns.md` |
 | Logging, debugging output | `structured-logging.md` |
 | Resource lifecycle (DB, files, subprocess) | `process-isolation.md` |
@@ -211,6 +212,7 @@ Run `uv run python <python-purist-skill-dir>/scripts/purist checklist` for the f
 
 - [ ] All function params and returns fully type-annotated? Zero `Any`, `type: ignore`, `# noqa`?
 - [ ] Serialization boundaries have explicit schema (msgspec.Struct)? Data validated once at boundary, never patched downstream?
+- [ ] `frozen=True` used only for real runtime immutability (config, value object, hash key, published event, concurrency snapshot), not for append-only or "please don't edit" conventions?
 - [ ] Zero `hasattr()` or `dict.get(key, default)` masking missing data? Zero input patching chains?
 - [ ] Zero `except: pass` or bare `except`? Errors propagate to the layer that can actually handle them?
 - [ ] Core logic functions free of I/O? External resources have a single lifecycle owner?
