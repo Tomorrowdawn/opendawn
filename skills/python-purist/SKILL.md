@@ -1,6 +1,6 @@
 ---
 name: python-purist
-description: Opinionated Python coding standards — type safety, explicit over implicit, composition over inheritance, coroutines over threads. Triggers on Python code authoring, refactoring, code review. Confirm the installed skill path, then use `uv run python <python-purist-skill-dir>/scripts/purist` to browse best practices, case studies, and cookbook recipes. Read this **every time** you write or review Python code.
+description: Opinionated Python coding standards — type safety, explicit over implicit, composition over inheritance, coroutines over threads. Triggers on Python code authoring, refactoring, code review. Confirm the installed skill path, then use `uv run python <python-purist-skill-dir>/scripts/purist` to browse best practices, case studies, and cookbook recipes. Read this if your python coding task is complex or user prefers clean, elegant and maintainable code.
 user-invocable: true
 ---
 
