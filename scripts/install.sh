@@ -10,15 +10,14 @@ set -euo pipefail
 #   curl pipe + interactive = use bash <(...) so stdin stays on tty.
 #
 #   Tracks every opendawn-owned file in $OPENDOWN_TARGET/.opendawn-manifest
-#   and prunes files that a previous run installed but this run no longer
-#   ships. Third-party deps (ponytail) are never recorded and never pruned.
+#   and prunes files that a previous run installed but this run no longer ships.
 # ──────────────────────────────────────────────
 
 usage() {
     echo "Usage: install.sh [-g] [-y]"
     echo "  (no flag)  Install into current directory (local project)"
     echo "  -g         Install globally (~/.config/opencode, ~/.claude)"
-    echo "  -y         Non-interactive: overwrite all conflicts without asking"
+    echo "  -y         Non-interactive: overwrite conflicts and remove legacy deps without asking"
     exit 1
 }
 
@@ -54,13 +53,6 @@ fi
 SKILLS_SRC="$REPO_ROOT/skills"
 OPENDOWN_SRC="$REPO_ROOT/.opencode"
 
-# ponytail is an external MIT skill we depend on for lazy reflection.
-# Installed alongside opendawn skills so YuuCoder can reference it at
-# skills/ponytail/SKILL.md (YuuCoder inlines the ladder core; YuuDev loads
-# it only on explicit user signal). License: MIT. See README for attribution.
-PONYTAIL_REPO="${PONYTAIL_REPO:-https://github.com/DietrichGebert/ponytail.git}"
-PONYTAIL_CACHE="${PONYTAIL_CACHE:-$HOME/.cache/opendawn-ponytail}"
-
 # ── determine targets ────────────────────────────────
 if $GLOBAL; then
     echo "==> Installing globally…"
@@ -85,18 +77,15 @@ STATS_UPDATED=0
 STATS_SKIPPED=0
 STATS_PRUNED=0
 
-# ── manifest (only opendawn's own files; never ponytail or user-added) ──
+# ── manifest (only opendawn's own files; never user-added files) ──
 # Lives at $OPENDOWN_TARGET/.opendawn-manifest. One absolute path per line.
 # Used to prune files opendawn installed in a previous run but no longer ships.
 MANIFEST_FILE=""
 MANIFEST_OLD=()    # paths recorded by a previous run
 MANIFEST_NEW=()    # paths opendawn owns (will be written back to manifest)
-MANIFEST_TOUCHED=() # every path written this run, managed or not (prune exclusion)
+MANIFEST_TOUCHED=() # every opendawn path written or matched this run
 PRUNE_MODE=""     # "" = ask, "remove" = remove-all, "keep" = keep-all
-# When false, merge_file records into MANIFEST_TOUCHED only (not MANIFEST_NEW),
-# so opendawn never prunes third-party files (ponytail) it just installed,
-# but also never claims ownership of them in the manifest.
-MANIFEST_RECORDING=true
+LEGACY_MODE=""    # "" = ask, "remove" = remove-all, "keep" = keep-all
 
 # Roots opendawn is allowed to manage. Pruning is restricted to files whose
 # realpath is under one of these — anything else in the manifest is ignored.
@@ -114,17 +103,13 @@ manifest_load() {
 
 manifest_record() {
     # Record a dest path opendawn just wrote.
-    # Always added to MANIFEST_TOUCHED (prune exclusion).
-    # Added to MANIFEST_NEW (ownership / writeback) only if recording is on.
     local path="$1"
     case "$path" in
         /*) ;;
         *)  path="$PWD/$path" ;;
     esac
     MANIFEST_TOUCHED+=("$path")
-    if $MANIFEST_RECORDING; then
-        MANIFEST_NEW+=("$path")
-    fi
+    MANIFEST_NEW+=("$path")
 }
 
 manifest_write() {
@@ -292,33 +277,6 @@ for skill_dir in "$SKILLS_SRC"/*/; do
     done
 done
 
-# ── install ponytail dependency ──────────────────────
-echo ""
-echo "── Ponytail (lazy reflection skill, MIT) ──"
-if [ ! -d "$PONYTAIL_CACHE" ]; then
-    echo "==> Fetching ponytail to $PONYTAIL_CACHE…"
-    git clone --depth 1 "$PONYTAIL_REPO" "$PONYTAIL_CACHE" >/dev/null 2>&1 || {
-        echo "  ! Failed to clone ponytail; agents will not be able to load it."
-        echo "    You can install it manually: npx skills add DietrichGebert/ponytail"
-    }
-else
-    echo "==> Updating $PONYTAIL_CACHE…"
-    git -C "$PONYTAIL_CACHE" pull --ff-only 2>/dev/null || true
-fi
-
-if [ -d "$PONYTAIL_CACHE/skills/ponytail" ]; then
-    # Ponytail is a third-party dependency — never record its paths in the
-    # manifest, so opendawn never prunes it (user may have installed it
-    # separately too).
-    MANIFEST_RECORDING=false
-    for target in "${SKILL_TARGETS[@]}"; do
-        merge_tree "$PONYTAIL_CACHE/skills/ponytail" "$target/ponytail" "skills/ponytail"
-    done
-    MANIFEST_RECORDING=true
-else
-    echo "  ! ponytail skill directory not found in clone; skipping."
-fi
-
 # ── install .opencode/ subdirs ───────────────────────
 echo ""
 echo "── OpenCode config (.opencode/) ──"
@@ -330,14 +288,10 @@ done
 
 # ── prune: remove opendawn-installed files that this run no longer ships ──
 #   OLD = paths recorded in a previous run's manifest.
-#   TOUCHED = every path written this run, including third-party (ponytail).
-#   A path is stale iff in OLD but not in TOUCHED. Ponytail is always
-#   re-installed above and added to TOUCHED, so it's never pruned — yet it's
-#   never written to MANIFEST_NEW, so opendawn never claims ownership of it.
+#   TOUCHED = every opendawn path written or matched this run.
+#   A path is stale iff in OLD but not in TOUCHED.
 #   Every deletion is also restricted to a path whose realpath is under one of
 #   MANAGED_ROOTS, so a tampered manifest can't cause arbitrary deletion.
-echo ""
-echo "── Prune stale files ──"
 prune_one() {
     local path="$1"
     [ -e "$path" ] || [ -L "$path" ] || return 0
@@ -384,6 +338,67 @@ prompt_prune() {
     done
 }
 
+remove_legacy_dir() {
+    local path="$1"
+    [ -d "$path" ] || return 0
+    local root
+    root="$(path_under_managed_root "$path")"
+    if [ -z "$root" ]; then
+        echo "  ! $path outside managed roots — leaving alone"
+        return 0
+    fi
+    rm -rf -- "$path"
+    ((++STATS_PRUNED))
+    echo "  × $(realpath --relative-to="$root" "$path" 2>/dev/null || echo "$path")"
+
+    # remove now-empty parent dirs up to (not including) the managed root
+    local d
+    d="$(dirname "$path")"
+    while [ "$d" != "$root" ] && [ -n "$d" ] && [ "$d" != "/" ]; do
+        if rmdir "$d" 2>/dev/null; then
+            d="$(dirname "$d")"
+        else
+            break
+        fi
+    done
+}
+
+prompt_legacy_ponytail() {
+    local path="$1"
+    echo ""
+    echo "  ▸ legacy dependency: $path"
+    if $YES; then
+        remove_legacy_dir "$path"
+        return
+    fi
+    local choice
+    while true; do
+        read -r -p "    remove ponytail? [r]emove  k[eep]  R[emove all]  K[eep all]  " choice < /dev/tty
+        case "$choice" in
+            r) remove_legacy_dir "$path"; return ;;
+            k) echo "    kept"; return ;;
+            R) LEGACY_MODE="remove"; remove_legacy_dir "$path"; return ;;
+            K) LEGACY_MODE="keep"; echo "    kept (all)"; return ;;
+            *) echo "    [r/k/R/K]" ;;
+        esac
+    done
+}
+
+echo ""
+echo "── Legacy dependency cleanup ──"
+for target in "${SKILL_TARGETS[@]}"; do
+    legacy="$target/ponytail"
+    [ -d "$legacy" ] || continue
+    case "$LEGACY_MODE" in
+        remove) remove_legacy_dir "$legacy" ;;
+        keep)   echo "  - $legacy (kept)" ;;
+        *)      prompt_legacy_ponytail "$legacy" ;;
+    esac
+done
+
+echo ""
+echo "── Prune stale files ──"
+
 # Build NEW set lookup; iterate OLD. A path is stale only if opendawn
 # recorded it before (OLD) AND did not touch it this run (not in TOUCHED).
 for old_path in "${MANIFEST_OLD[@]}"; do
@@ -408,10 +423,6 @@ echo "  + $STATS_NEW new files"
 echo "  ~ $STATS_UPDATED updated"
 echo "  - $STATS_SKIPPED skipped"
 echo "  × $STATS_PRUNED pruned (stale opendawn files removed)"
-echo ""
-echo "Includes ponytail (MIT, https://github.com/DietrichGebert/ponytail)"
-echo "installed at skills/ponytail/. Referenced by YuuCoder (ladder inlined);"
-echo "YuuDev loads it only on explicit user signal."
 echo "──────────────────────────────────────────────────"
 if [ "$STATS_SKIPPED" -gt 0 ]; then
     echo "Re-run with -y to overwrite all skipped files."

@@ -79,7 +79,6 @@ needs this workflow.
 | `probe-and-plan` | Human-invoked deep-dive for root-cause investigation. |
 | `python-purist` | Human-invoked Python handbook for patterns and anti-patterns. |
 | `what-should-i-do` | Human-invoked morning orientation. |
-| `ponytail` *(dependency, MIT)* | Lazy reflection ladder, fetched by `scripts/install.sh`. |
 
 ## Development
 
@@ -95,16 +94,11 @@ opendawn/
 ├── skills/                    # Platform-independent skills
 ├── roadmap/                   # Git-tracked long-term project plans
 ├── .opencode/agents/          # OpenCode agent definitions
-├── scripts/install.sh         # Installer + ponytail dependency
+├── scripts/install.sh         # Installer
 ├── external-wiki/             # Reference docs for OpenCode plugin system
 ├── opencode.json
 └── package.json
 ```
-
-## Third-Party Notice
-
-This project installs the `ponytail` skill (MIT) from
-[DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail).
 
 ## License
 

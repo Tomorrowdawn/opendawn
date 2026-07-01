@@ -50,10 +50,6 @@ the core flow and context-access model are stable, then iterate lifecycle, then
 facade. Development reads the final core/lifecycle/facade design artifacts and
 implements with senior engineering judgment. Not every task needs this flow.
 
-The `ponytail` skill (MIT, external) is installed by `install.sh` and
-referenced from YuuCoder's prompt; the ladder core is inlined there.
-YuuDev loads lazy reflection only on explicit user signal.
-
 ## Worktree environment reuse
 
 Agents may create git worktrees under `.tmp/{task}/worktree/`.
@@ -85,7 +81,6 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 | `probe-and-plan` | Human-invoked deep-dive for root-cause investigation. |
 | `python-purist` | Human-invoked Python handbook for patterns and anti-patterns. |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |
-| `ponytail` *(externally installed)* | Lazy reflection ladder. Both agents' prompts inline the ladder core and reference this skill. |
 
 ## Constraints
 
