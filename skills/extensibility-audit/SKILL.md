@@ -17,6 +17,13 @@ requirement, or storage variant would force edits to stable core code. The
 output is an audit: what extension pressure exists, where it lands, and whether
 the design accepts or removes that pressure.
 
+Assume the code will be maintained after the first implementation. The question
+is not whether the current feature can be coded once; it is whether likely
+future edits land in the right place. Unstable business boundaries and context
+hubs need explicit extension room. Stable core definitions need the opposite
+discipline: do not add fields unless the design argues the information is
+already necessary and sufficient for the core operation.
+
 ## Audit Questions
 
 - What are the likely future additions?
@@ -27,6 +34,8 @@ the design accepts or removes that pressure.
 - Is there a registry, provider, adapter, strategy, or capability boundary?
 - Does the facade expose enough protocol surface for future variants?
 - Which closed set is intentionally closed, and why?
+- Which proposed core fields are actually subcomponent needs that should be
+  reached through context, provider, capability, or registry extension instead?
 
 ## Context Growth
 

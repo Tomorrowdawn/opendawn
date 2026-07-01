@@ -66,6 +66,20 @@ Previously we tried X, but it failed because Y, so now we patch Z.
 That history may be useful as a lesson, but a new developer should not need to
 understand old mistakes before understanding the current design.
 
+## Maintenance Assumption
+
+Design prose should assume the code will be maintained, edited, and extended
+after the first implementation. It is not a one-way path from one problem to one
+code patch that nobody revisits.
+
+For unstable areas, especially business boundaries and context hubs, name the
+extension room: how fields, variants, providers, capabilities, or records can be
+added, removed, defaulted, rejected, or migrated. For stable core concepts, use
+the opposite discipline: argue that the current information is sufficient for
+the core operation, and avoid adding speculative fields. Future variation should
+usually extend a child component or context access path, not widen the core
+domain itself.
+
 ## Guardrails
 
 - Do not force a fixed file format.

@@ -50,6 +50,18 @@ Compatibility:
 `Context collection` is important: if core design says a process needs
 context, facade design must say which boundary gathers or exposes it.
 
+## Maintenance Assumption
+
+Design for maintained code, not one-shot code. Facades sit at unstable business
+boundaries, so their contracts should say where compatible extension happens:
+new request fields, new response fields, new event kinds, versioned messages,
+optional capabilities, and rejected incompatible changes.
+
+Leave extension room at the boundary without polluting the core. A new external
+field should map to a facade adapter, context collector, provider, capability,
+or subcomponent when possible. It should not force a new core field unless the
+core design can prove the information is part of the core decision or invariant.
+
 ## Development Handoff
 
 After facade design, the developer should be able to read:
