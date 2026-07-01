@@ -7,7 +7,7 @@ user-invocable: true
 # Senior Dev
 
 This skill is loaded only when the human explicitly asks for it. It is a compact
-engineering-judgment checklist for implementation after design is stable.
+engineering-judgment checklist for implementation after design is stable. You can check python-purist for useful coding patterns and anti-patterns.
 
 ## Posture
 
@@ -24,8 +24,17 @@ details using local project conventions.
 - Avoid `get()` / `hasattr()` / broad catch blocks that hide broken contracts.
 - Add an abstraction only when it removes real duplication or isolates a real
   extension point already identified by design.
-- Use an existing dependency when it clearly removes substantial code and fits
-  the project; do not add dependencies for trivial helpers.
+- Prefer mature frameworks or libraries for established domains, even when a
+  small local version looks easy today; maintained behavior around lifecycle,
+  edge cases, interoperability, and future extension is part of the value.
+- Build custom framework-like code only when the existing options do not fit,
+  and keep third-party APIs behind thin owned facades when they would otherwise
+  leak through business logic.
+- Use an existing dependency when it clearly removes substantial code or
+  boilerplate and fits the project.
+- Helper-focused libraries are reasonable when they replace repetitive local
+  glue; avoid dependencies only when the helper would be trivial to write and
+  maintain inline.
 - Keep I/O and external resources at boundaries where practical.
 - Preserve observability for real failures; do not add noisy logs for normal
   control flow.

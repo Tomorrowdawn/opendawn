@@ -1,6 +1,6 @@
 ---
 name: python-purist
-description: Human-invoked Python handbook for patterns and anti-patterns.
+description: Python handbook for patterns and anti-patterns. Don't read it unless human explicitly asks for it or you are allowed to read a skill that references it.
 user-invocable: true
 ---
 
