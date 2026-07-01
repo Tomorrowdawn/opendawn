@@ -23,20 +23,32 @@ roadmap/           → git-tracked long-term plans and desired final states
 external-wiki/     → reference docs for the OpenCode plugin system
 ```
 
-Three agents: `YuuDev` (primary, default direct mode + opt-in batch-launcher mode),
-`YuuCoder` (subagent, large-task worktree executor), and `YuuPM` (primary,
-requirements/roadmap maintainer). YuuDev and YuuCoder share code-level
-discipline; YuuPM owns the requirements lifecycle and never touches code.
+Three agents: `YuuDev` (primary developer), `YuuCoder` (subagent executor), and
+`YuuPM` (primary requirements/roadmap maintainer). YuuDev and YuuCoder share
+code-level discipline; YuuPM owns requirements and never touches code.
 Their system prompts embed git discipline, scenario communication, and commit
-hygiene directly. YuuCoder also inlines the lazy reflection ladder; YuuDev does
-not — scenario output is its dominant pressure, and anti-verbosity reflexes
-must be opt-in (`probe-and-plan` / `coding-instruction`) to avoid suppressing
-scenarios. YuuPM inlines a documentation-flavored lazy ladder by default —
-documentation over-builds as easily as code, and the requirements stage is
-where pseudo-requirements and scope creep take root.
-Skills are opt-in for deep-dive (`probe-and-plan`) and large-task spec
-(`coding-instruction`). The `issue-lifecycle` skill is shared by YuuPM (always)
-and YuuDev (before any Issue state transition).
+hygiene directly.
+
+Skills are human-invoked by default, with one exception:
+`scenario-communication` may load automatically because scenario traces are the
+default alignment surface between human and agent. Other skill descriptions are
+intentionally brief and human-facing; agents should not proactively load those
+skills during ordinary work.
+The main design flow is conversational and optional:
+
+```
+design-language
+  -> core-design
+    -> extensibility-audit
+    -> lifecycle-design
+      -> facade-design
+        -> development
+```
+
+Humans can iterate `core-design` and `extensibility-audit` with the LLM until
+the core flow and context-access model are stable, then iterate lifecycle, then
+facade. Development reads the final core/lifecycle/facade design artifacts and
+implements with senior engineering judgment. Not every task needs this flow.
 
 The `ponytail` skill (MIT, external) is installed by `install.sh` and
 referenced from YuuCoder's prompt; the ladder core is inlined there.
@@ -63,11 +75,15 @@ Platform-independent agent skills distributed via the `npx skills` CLI (Vercel e
 
 | Skill | Purpose |
 |-------|---------|
-| `probe-and-plan` | Opt-in deep-dive — take-a-step-back, ought-to-be, design format. Loaded only when symptoms recur or architecture mismatch is suspected. |
-| `coding-instruction` | Spec for large-task workflow — instruction format, Change Scope, Test Boundary, blocker protocol, worktree lifecycle, task sizing. |
-| `issue-lifecycle` | Issue lifecycle for `roadmap/issues/` — state machine (draft→approved→in-progress→implemented), `transition.py` (auto-committing status changes), `list.py` (filter by status, shows Priority + Milestone columns). Issues carry a two-axis classification: `priority` (P0–P3, importance) and `milestone` (M-N / all / none, urgency — concretely, whether the Issue is bound to the currently-active WIP milestone). Shared by YuuPM (always) and YuuDev (before any Issue state transition and REFACTOR regression audits). |
-| `yuutest` | Red-green subworkflow used during the test-first phase of a coding instruction. |
-| `python-purist` | Opinionated Python coding standards |
+| `scenario-communication` | Auto-loadable scenario trace method for human-agent alignment. |
+| `design-language` | Human-invoked notes for design narration language. |
+| `core-design` | Human-invoked handbook for core process design and context access. |
+| `extensibility-audit` | Human-invoked audit for open-closed design pressure. |
+| `lifecycle-design` | Human-invoked handbook for lifecycle design. |
+| `facade-design` | Human-invoked handbook for facade and interface design. |
+| `senior-dev` | Human-invoked handbook for senior development judgment. |
+| `probe-and-plan` | Human-invoked deep-dive for root-cause investigation. |
+| `python-purist` | Human-invoked Python handbook for patterns and anti-patterns. |
 | `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos |
 | `ponytail` *(externally installed)* | Lazy reflection ladder. Both agents' prompts inline the ladder core and reference this skill. |
 

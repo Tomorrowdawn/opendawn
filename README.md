@@ -1,35 +1,26 @@
 # opendawn
 
-Agent skills and custom agents for AI coding tools — OpenCode, Claude Code, and the `npx skills` ecosystem.
+Agent skills and custom agents for AI coding tools: OpenCode, Claude Code, and
+the `npx skills` ecosystem.
 
 ## Quick Install
 
-Install into your current project (default):
+Install into your current project:
 
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh)
 ```
 
-Install globally (`~/.config/opencode`, `~/.claude`):
+Install globally:
 
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh) -g
 ```
 
-Non-interactive (overwrite all without asking):
+Non-interactive:
 
 ```bash
 bash <(curl -sSL https://raw.githubusercontent.com/Tomorrowdawn/opendawn/main/scripts/install.sh) -y
-```
-
-Or clone manually:
-
-```bash
-git clone https://github.com/Tomorrowdawn/opendawn.git
-cd your-project
-bash ../opendawn/scripts/install.sh      # local, interactive
-bash ../opendawn/scripts/install.sh -g   # global
-bash ../opendawn/scripts/install.sh -y   # non-interactive
 ```
 
 `npx skills` CLI users:
@@ -40,103 +31,81 @@ npx skills add Tomorrowdawn/opendawn
 
 ## Architecture
 
-Two agents; pick by mode, not by phase.
+Opendawn is a small set of human-invoked skills plus lightweight agent prompts.
+The current design philosophy is:
+
+- Fewer skills, each with a narrow job.
+- Skill descriptions are brief and human-facing, except the scenario skill.
+- Agents should not proactively load skills during ordinary work, except
+  `scenario-communication`.
+- Final design docs should describe the current intended model, not historical
+  failed attempts.
+
+The optional design flow is:
 
 ```text
-Human <-> YuuDev (primary)
-  ↪ Mode A — Direct (default): implement in current/assigned worktree, commit, done.
-              Gradient is small; git diff is the audit.
-  ↪ Mode B — Batch Launcher (explicit): user points at a folder of *-instructions.md;
-              YuuDev dispatches parallel YuuCoder runs, collects reports, verifies.
-
-YuuDev also writes instruction.md files for large tasks (opt-in to the
-coding-instruction skill format). It does NOT auto-spawn subagents.
-
-YuuDev ←detects symptoms→ suggests loading `probe-and-plan` for deep-dive.
-
-YuuCoder (subagent)
-  ↪ Reads one *-instructions.md, works inside its scope + test boundary,
-     runs red-green, commits, self-reviews, appends to PR doc, reports.
+design-language
+  -> core-design
+    -> extensibility-audit
+    -> lifecycle-design
+      -> facade-design
+        -> development
 ```
 
-What belongs where (the design principle):
+Humans usually iterate `core-design` and `extensibility-audit` with the LLM until
+the core flow and context-access model are stable. Then lifecycle is refined,
+then facade contracts are made precise, then development starts. Not every task
+needs this workflow.
 
-> **System prompt is the strongest constraint.** Per the LLM training, content written directly in the agent's prompt outweighs the same content loaded via "read this file." Skills are a workaround for content too large or too situational to live in the prompt. So:
-> - Habits every agent needs → system prompt (scenarios, git recon, commit discipline, lazy ladder)
-> - Method the user opts into → skill (deep-dive, coding-instruction spec)
-> - Cross-project reference material → skill (language standards, case studies)
-
-## What's Inside
-
-### Custom Agents (`.opencode/agents/`)
-
-OpenCode primary and subagent definitions. Their system prompts embed git discipline, scenario communication, commit hygiene, and the lazy-reflection ladder directly.
+## Custom Agents
 
 | Agent | Role |
 |-------|------|
-| `YuuDev` | Primary. Direct mode (implement in worktree + commit) is the default. For large tasks, writes `*-instructions.md` files and stops — user reviews/edits, clears session, then re-launches YuuDev to trigger Batch Launcher mode. Suggests `probe-and-plan` when symptoms recur. |
-| `YuuCoder` | Subagent. Executes one `*-instructions.md` in an assigned clean worktree: red-green test-first, scope-locked implementation, self-review, PR doc. Only invoked for large-task workflow. |
+| `YuuDev` | Primary developer. Implements directly, debugs, reviews, and discusses design. Uses skills only when explicitly invoked. |
+| `YuuCoder` | Subagent executor for scoped implementation tasks. Reads design artifacts as contracts when provided. |
+| `YuuPM` | Roadmap and requirements maintainer. Writes docs, not code. |
 
-### Skills (`skills/`)
-
-Platform-independent skills distributed via the `npx skills` CLI and installed by `install.sh`.
+## Skills
 
 | Skill | Description |
 |-------|-------------|
-| `probe-and-plan` | Opt-in deep-dive. Take-a-step-back methodology, ought-to-be analysis, design format. Loads only when the user signals recurring symptoms or suspected architecture mismatch. NOT a default phase. |
-| `coding-instruction` | Specification for the large-task workflow. Defines `*-instructions.md` format, Change Scope semantics, Test Boundary requirements, blocker protocol, worktree lifecycle, task sizing. Loaded manually when producing or executing instruction artifacts. |
-| `yuutest` | Red-green test subworkflow used during the test-first phase of a coding instruction. Catches invalid red failures and bad-test anti-patterns. |
-| `python-purist` | Opinionated Python coding standards — type safety, composition over inheritance, coroutines over threads. Includes 31 case studies, cookbook recipes, and an automated anti-pattern scanner. |
-| `what-should-i-do` | Human-invoked morning orientation — summarize recent progress, roadmap position, and important next todos. |
-| `ponytail` *(dependency, MIT)* | Lazy reflection ladder. Forces the simplest, shortest, most minimal solution. `YuuCoder`'s system prompt inlines the ladder core; `YuuDev` loads it only on explicit user signal, so its scenario-as-deliverable pressure stays dominant. Source: [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), MIT — installed automatically by `install.sh`. |
+| `scenario-communication` | Auto-loadable scenario trace method for human-agent alignment. |
+| `design-language` | Human-invoked notes for design narration language. |
+| `core-design` | Human-invoked handbook for core process design and context access. |
+| `extensibility-audit` | Human-invoked audit for open-closed design pressure. |
+| `lifecycle-design` | Human-invoked handbook for lifecycle design. |
+| `facade-design` | Human-invoked handbook for facade and interface design. |
+| `senior-dev` | Human-invoked handbook for senior development judgment. |
+| `probe-and-plan` | Human-invoked deep-dive for root-cause investigation. |
+| `python-purist` | Human-invoked Python handbook for patterns and anti-patterns. |
+| `what-should-i-do` | Human-invoked morning orientation. |
+| `ponytail` *(dependency, MIT)* | Lazy reflection ladder, fetched by `scripts/install.sh`. |
 
 ## Development
 
 ```bash
 pnpm install
-pnpm check          # TypeScript type checking
+pnpm check
 ```
 
 ## Structure
 
-```
+```text
 opendawn/
-├── skills/                        # Platform-independent agent skills
-│   ├── probe-and-plan/SKILL.md    # Opt-in deep-dive
-│   ├── coding-instruction/SKILL.md # Spec for large-task workflow
-│   ├── yuutest/SKILL.md           # Red-green test subworkflow
-│   ├── python-purist/             # Python standards + case studies + scanner
-│   ├── what-should-i-do/SKILL.md # Morning orientation
-│   └── (ponytail is installed by install.sh, not committed here)
-├── roadmap/                       # Git-tracked long-term project plans
-│   └── index.md
-├── .opencode/
-│   ├── agents/                    # OpenCode agent definitions
-│   │   ├── yuudev.md              #   Primary system prompt (direct + launcher modes)
-│   │   └── yuucoder.md            #   Subagent system prompt (large-task executor)
-│   └── commands/                  # (empty — no slash commands by design)
-├── scripts/
-│   └── install.sh                 # One-liner install + ponytail dependency
-├── external-wiki/                 # Reference docs for OpenCode plugin system
+├── skills/                    # Platform-independent skills
+├── roadmap/                   # Git-tracked long-term project plans
+├── .opencode/agents/          # OpenCode agent definitions
+├── scripts/install.sh         # Installer + ponytail dependency
+├── external-wiki/             # Reference docs for OpenCode plugin system
 ├── opencode.json
 └── package.json
 ```
 
 ## Third-Party Notice
 
-This project includes the `ponytail` skill (MIT) from
+This project installs the `ponytail` skill (MIT) from
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail).
-It is fetched automatically by `scripts/install.sh` and stored at
-`skills/ponytail/`. `YuuCoder`'s system prompt inlines the ladder core;
-`YuuDev` keeps lazy reflection opt-in (loaded on explicit user signal) so
-the lazy anti-verbosity reflex cannot suppress YuuDev's scenario traces.
-
-To install ponytail manually (without `install.sh`):
-
-```bash
-npx skills add DietrichGebert/ponytail
-```
 
 ## License
 
-MIT — see [LICENSE](./LICENSE)
+MIT, see [LICENSE](./LICENSE).

@@ -1,6 +1,6 @@
 ---
 name: what-should-i-do
-description: Human-invoked only morning orientation skill for explaining what matters now from roadmap, local work records, task artifacts, and recent git activity. AI agents must not proactively read, invoke, or use this skill during ordinary planning or implementation.
+description: Human-invoked morning orientation.
 ---
 
 # What Should I Do
