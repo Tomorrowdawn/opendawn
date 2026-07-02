@@ -6,9 +6,7 @@ user-invocable: true
 
 # Facade Design
 
-This skill is loaded only when the human explicitly asks for it. Use it after
-core and lifecycle design are stable enough to expose clear interfaces. If you
-need design prose conventions, read `design-language`.
+This skill is loaded only when the human explicitly asks for it. Use it after core and lifecycle design are stable enough to expose clear interfaces. If you need design prose conventions, read `design-language`.
 
 ## Goal
 
@@ -19,6 +17,9 @@ paths, commands, transport protocols, storage locations, and output contracts.
 Facade design is still not an implementation plan. It defines what external
 callers can rely on; the developer chooses internal files, helpers, classes, and
 sequencing.
+
+**Be specific, be assertive**. Do not hedge. Do not say "we might" or "we could". If this is intentionally an extension point, say so. You must make a decision, obtaining something and sacrificing something else.
+
 
 ## Facade Surface
 

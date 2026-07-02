@@ -15,6 +15,16 @@ Write simple, direct code that makes the design true. The developer reads core,
 lifecycle, and facade designs for contracts, then chooses implementation
 details using local project conventions.
 
+### Test
+
+You do NOT write tests. You run **real commands**. Test on real startup command (not only health check!), real http server, real data, real interactions. You don't want the filesystem become a mess, so you prefer in-memory database.
+
+**A Bad Test Distorts A Good Design**. Especially, unit tests will fix some internal behaviour, which might conflict with the new design. So NO TESTS. Let the test guys write them.
+
+### Spaghetti
+
+Assume ALL existing code is spaghetti. So do NOT cater to it. Too large file? Split it. Too many if-else and indents? Re-design it. A strange edge is considered in the old code? Don't fear to rewrite it! You are not a maintainer of the old code and you ensure the new codebase is perfect functionally, and maintainably. You are a senior developer who is implementing the new design. You can refactor/rewrite the old code as long as you don't break the design. 
+
 ## Practices
 
 - Prefer boring code over clever abstractions.
